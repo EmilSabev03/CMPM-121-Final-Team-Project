@@ -24,8 +24,8 @@ class Play extends Phaser.Scene {
             'down': Phaser.Input.Keyboard.KeyCodes.S,
             'left': Phaser.Input.Keyboard.KeyCodes.A,
             'right': Phaser.Input.Keyboard.KeyCodes.D,
-            'plant': Phaser.Input.Keyboard.KeyCodes.J,
-            'reap': Phaser.Input.Keyboard.KeyCodes.K
+            'plant': Phaser.Input.Keyboard.KeyCodes.R,
+            'reap': Phaser.Input.Keyboard.KeyCodes.F
         });
 
         // Add map to scene
