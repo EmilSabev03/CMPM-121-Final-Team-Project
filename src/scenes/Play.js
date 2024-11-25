@@ -6,7 +6,7 @@ class Play extends Phaser.Scene {
 
     preload() {
         // Load tilemap, player, and tileset assets
-        this.load.tilemapTiledJSON('gameMap', '../assets/gamemaptest5.tmj');
+        this.load.tilemapTiledJSON('gameMap', '../assets/gamemaptest6.tmj');
         this.load.image('player', '../assets/player.png');
         this.load.image('tileset1', '../assets/farming_fishing.png');
         this.load.image('tileset2', '../assets/fence_alt.png');
@@ -44,6 +44,8 @@ class Play extends Phaser.Scene {
         const tileLayer1 = this.map.createLayer('Tile Layer 1', [tileset11, tileset5], 0, 0);
         const tileLayer2 = this.map.createLayer('Tile Layer 2', [tileset8], 0, 0);
         const tileLayer4 = this.map.createLayer('Tile Layer 4', [tileset7, tileset11], 0, 0);
+
+        this.farmingLayer = this.map.createLayer('Farming Layer', tileset5, 0, 0);
 
         this.collisionLayer = this.map.createLayer('Collision Layer 1', [tileset1, tileset11, tileset2, tileset9], 0, 0);
         const collisionLayer2 = this.map.createLayer('Collision Layer 2', [tileset1, tileset11, tileset2, tileset7], 0, 0);
@@ -86,54 +88,56 @@ class Play extends Phaser.Scene {
         this.handlePlantingAndReaping();
     }
 
-    handlePlantingAndReaping() {
+    handlePlantingAndReaping() 
+    {
         const tileSize = this.map.tileWidth;
         const playerTileX = Math.floor(this.player.x / tileSize);
         const playerTileY = Math.floor(this.player.y / tileSize);
+
+        const farmingTile = this.farmingLayer.getTileAt(playerTileX, playerTileY);
+        const canFarm = farmingTile !== null;
         
-        // Handle planting (J key)
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.plant)) {
-            console.log("Plant key pressed!");
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.plant)) 
+        {
+            if (canFarm)
+            {
+                const plant = this.add.graphics();
+                plant.fillStyle(0x00FF00, 1); []
+                plant.fillRect(playerTileX * tileSize, playerTileY * tileSize, tileSize, tileSize);
             
-            // Spawn a placeholder rectangle (green) where the player is
-            const plant = this.add.graphics();
-            plant.fillStyle(0x00FF00, 1);  // Green color
-            plant.fillRect(playerTileX * tileSize, playerTileY * tileSize, tileSize, tileSize);
+                plant.setData('tileX', playerTileX);
+                plant.setData('tileY', playerTileY);
             
-            // Optionally store the plant in a variable if you want to manage it later
-            plant.setData('tileX', playerTileX);
-            plant.setData('tileY', playerTileY);
-            
-            // Store the plant object in a map (or similar structure) so we can refer to it later
-            // You can store it globally or in a scene object (like this.plants)
-            if (!this.plants) {
-                this.plants = [];
+                if (!this.plants) 
+                {
+                    this.plants = [];
+                }
+
+                this.plants.push(plant); 
             }
-            this.plants.push(plant);  // Add the new plant to the plants array
         }
         
-        // Handle reaping (K key)
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.reap)) {
-            console.log("Reap key pressed!");
-    
-            // Loop through the plants array to find any plant at the player's position
-            if (this.plants) {
-                for (let i = 0; i < this.plants.length; i++) {
-                    const plant = this.plants[i];
-                    const plantX = plant.getData('tileX');
-                    const plantY = plant.getData('tileY');
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.reap)) 
+        {
+            if (canFarm)
+            {
+                if (this.plants) 
+                {
+                    for (let i = 0; i < this.plants.length; i++) 
+                    {
+                        const plant = this.plants[i];
+                        const plantX = plant.getData('tileX');
+                        const plantY = plant.getData('tileY');
                     
-                    // If the plant is at the player's position, remove it
-                    if (plantX === playerTileX && plantY === playerTileY) {
-                        console.log(`Reaping plant at (${plantX}, ${plantY})`);
-                        plant.destroy();  // Remove the plant graphics
-                        this.plants.splice(i, 1);  // Remove the plant from the array
-                        break;  // Stop looking for more plants after the first one is reaped
+                        if (plantX === playerTileX && plantY === playerTileY) 
+                        {
+                            plant.destroy(); 
+                            this.plants.splice(i, 1);  
+                            break;  
+                        }
                     }
                 }
             }
         }
     }
-    
-    
 }
