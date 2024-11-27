@@ -1,7 +1,10 @@
 class Play extends Phaser.Scene {
     init() {
-        // Player speed
-        this.VEL = 200;
+        // Initialize variables
+        this.VEL = 200;        // Player speed
+        this.timeElapsed = 0;  // Time starts at 0
+        this.lastTimeIncrement = 0;
+        this.timeInterval = 1000;
     }
 
     preload() {
@@ -25,7 +28,8 @@ class Play extends Phaser.Scene {
             'left': Phaser.Input.Keyboard.KeyCodes.A,
             'right': Phaser.Input.Keyboard.KeyCodes.D,
             'plant': Phaser.Input.Keyboard.KeyCodes.R,
-            'reap': Phaser.Input.Keyboard.KeyCodes.F
+            'reap': Phaser.Input.Keyboard.KeyCodes.F,
+            'incrementTime': Phaser.Input.Keyboard.KeyCodes.T
         });
 
         // Add map to scene
@@ -63,10 +67,16 @@ class Play extends Phaser.Scene {
         this.physics.add.collider(this.player, this.collisionLayer);
         this.physics.add.collider(this.player, collisionLayer2);
         this.physics.world.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+
+        // Add text to the container for displaying time
+        this.infoText = this.add.text(1030, 1300, `Time: ${this.timeElapsed}`, {
+            fontSize: '50px',
+            fill: '#ffffff'
+        });
     }
 
     update() {
-        // Update the direction that the player is moving in on screen
+        // Update player movement
         this.direction = new Phaser.Math.Vector2(0);
 
         if (this.cursors.left.isDown) {
@@ -86,54 +96,56 @@ class Play extends Phaser.Scene {
 
         // Handle planting and reaping
         this.handlePlantingAndReaping();
+
+        // Increment time when T is held down
+        if (this.cursors.incrementTime.isDown && this.lastTimeIncrement <= 0) {
+            this.timeElapsed += 1;  // Increment time by 1 each frame
+            this.infoText.setText(`Time: ${this.timeElapsed}`);
+            this.lastTimeIncrement = this.timeInterval;
+        }
+
+        if (this.lastTimeIncrement > 0) {
+            this.lastTimeIncrement -= 100;
+        }
     }
 
-    handlePlantingAndReaping() 
-    {
+    handlePlantingAndReaping() {
         const tileSize = this.map.tileWidth;
         const playerTileX = Math.floor(this.player.x / tileSize);
         const playerTileY = Math.floor(this.player.y / tileSize);
 
         const farmingTile = this.farmingLayer.getTileAt(playerTileX, playerTileY);
         const canFarm = farmingTile !== null;
-        
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.plant)) 
-        {
-            if (canFarm)
-            {
+
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.plant)) {
+            if (canFarm) {
                 const plant = this.add.graphics();
-                plant.fillStyle(0x00FF00, 1); []
+                plant.fillStyle(0x00FF00, 1);
                 plant.fillRect(playerTileX * tileSize, playerTileY * tileSize, tileSize, tileSize);
-            
+
                 plant.setData('tileX', playerTileX);
                 plant.setData('tileY', playerTileY);
-            
-                if (!this.plants) 
-                {
+
+                if (!this.plants) {
                     this.plants = [];
                 }
 
-                this.plants.push(plant); 
+                this.plants.push(plant);
             }
         }
-        
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.reap)) 
-        {
-            if (canFarm)
-            {
-                if (this.plants) 
-                {
-                    for (let i = 0; i < this.plants.length; i++) 
-                    {
+
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.reap)) {
+            if (canFarm) {
+                if (this.plants) {
+                    for (let i = 0; i < this.plants.length; i++) {
                         const plant = this.plants[i];
                         const plantX = plant.getData('tileX');
                         const plantY = plant.getData('tileY');
-                    
-                        if (plantX === playerTileX && plantY === playerTileY) 
-                        {
-                            plant.destroy(); 
-                            this.plants.splice(i, 1);  
-                            break;  
+
+                        if (plantX === playerTileX && plantY === playerTileY) {
+                            plant.destroy();
+                            this.plants.splice(i, 1);
+                            break;
                         }
                     }
                 }
