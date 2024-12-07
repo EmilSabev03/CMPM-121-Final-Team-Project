@@ -103,59 +103,51 @@ class Play extends Phaser.Scene {
     }
 
     update() 
-    {
-        this.direction = new Phaser.Math.Vector2(0);
+{
+    this.direction = new Phaser.Math.Vector2(0);
 
-        if (this.cursors.left.isDown) {
-            this.direction.x = -1;
-        } else if (this.cursors.right.isDown) {
-            this.direction.x = 1;
+    if (this.cursors.left.isDown) {
+        this.direction.x = -1;
+    } else if (this.cursors.right.isDown) {
+        this.direction.x = 1;
+    }
+
+    if (this.cursors.up.isDown) {
+        this.direction.y = -1;
+    } else if (this.cursors.down.isDown) {
+        this.direction.y = 1;
+    }
+
+    this.direction.normalize();
+    this.player.setVelocity(this.VEL * this.direction.x, this.VEL * this.direction.y);
+
+    this.handlePlantingAndReaping();
+
+    // Check if the number of 'D' plants is at least 5
+    const numDPlants = this.countPlantsOfType('plant1d') + this.countPlantsOfType('plant2d') + this.countPlantsOfType('plant3d');
+    if (numDPlants >= 5) {
+        this.displayWinMessage();
+    }
+
+    // Increment time and other functions
+    if (this.cursors.incrementTime.isDown && this.lastTimeIncrement <= 0) {
+        this.timeElapsed += 1;
+        this.updateTimeDisplay();
+        this.lastTimeIncrement = this.timeInterval;
+
+        for (const key in this.tilledSoilData) {
+            const tileData = this.tilledSoilData[key];
+            tileData.sunLevel += Math.floor(Math.random() * 10) + 1;
+            tileData.waterLevel += Math.floor(Math.random() * 2) + 1;
+
+            const [tileX, tileY] = key.split(',').map(Number);
+            this.checkPlantGrowth(tileX, tileY);
         }
+    }
 
-        if (this.cursors.up.isDown) {
-            this.direction.y = -1;
-        } else if (this.cursors.down.isDown) {
-            this.direction.y = 1;
-        }
-
-        this.direction.normalize();
-        this.player.setVelocity(this.VEL * this.direction.x, this.VEL * this.direction.y);
-
-        this.handlePlantingAndReaping();
-
-        //Increment time when T is held down
-        if (this.cursors.incrementTime.isDown && this.lastTimeIncrement <= 0) 
-        {
-            this.timeElapsed += 1;
-            this.updateTimeDisplay();
-            this.lastTimeIncrement = this.timeInterval;
-    
-            for (const key in this.tilledSoilData) 
-            {
-                const tileData = this.tilledSoilData[key];
-                //console.log(`Before added - Tile ${key}: Sun = ${tileData.sunLevel}, Water = ${tileData.waterLevel}`);
-
-                tileData.sunLevel += Math.floor(Math.random() * 10) + 1;
-                tileData.waterLevel += Math.floor(Math.random() * 2) + 1;
-
-                //console.log(`After added - Tile ${key}: Sun = ${tileData.sunLevel}, Water = ${tileData.waterLevel}`);
-    
-                const [tileX, tileY] = key.split(',').map(Number);
-                this.checkPlantGrowth(tileX, tileY);
-
-                console.log(`After subtracted - Tile ${key}: Sun = ${tileData.sunLevel}, Water = ${tileData.waterLevel}`);
-            }
-        }
-    
-        if (this.lastTimeIncrement > 0) 
-        {
-            this.lastTimeIncrement -= 100;
-        }
-
-        const tileX = Math.floor(this.player.x / this.tileSize);
-        const tileY = Math.floor(this.player.y / this.tileSize);
-
-        const currentTileData = this.getTilledSoilData(tileX, tileY);
+    if (this.lastTimeIncrement > 0) {
+        this.lastTimeIncrement -= 100;
+    }
         /*
         if (currentTileData) {
         console.log(
@@ -320,13 +312,13 @@ class Play extends Phaser.Scene {
         {
             plant1a: 'plant1b',
             plant1b: 'plant1c',
-            plant1c: 'plant1d',
+            plant1c: 'plant1d', 
             plant2a: 'plant2b',
             plant2b: 'plant2c',
-            plant2c: 'plant2d',
+            plant2c: 'plant2d', 
             plant3a: 'plant3b',
             plant3b: 'plant3c',
-            plant3c: 'plant3d',
+            plant3c: 'plant3d', 
         };
 
         const currentPlantType = plant.texture.key;
@@ -417,5 +409,24 @@ class Play extends Phaser.Scene {
             const plantTileY = Math.floor(plant.y / tileSize);
             return plantTileX === tileX && plantTileY === tileY;
         }) || null;
+    }
+
+    //Function that counts the amount of plants of each type
+    countPlantsOfType(plantType) {
+        let count = 0;
+        if (this.plants) {
+            this.plants.forEach(plant => {
+                if (plant.texture.key === plantType) {
+                    count++;
+                }
+            });
+        }
+        return count;
+    }
+    
+    //Function that displays the win condition
+    displayWinMessage() {
+        this.infoText.setText("Phase 1 complete: Grew 5 level 4 plants");
+        this.infoText.setStyle({ fontSize: '30px', fill: '#00ff00' });
     }
 }
