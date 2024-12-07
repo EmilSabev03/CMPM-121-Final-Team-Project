@@ -5,6 +5,11 @@ class Play extends Phaser.Scene {
         this.timeElapsed = 0;  // Time starts at 0
         this.lastTimeIncrement = 0;
         this.timeInterval = 1000;
+        this.totalWater = 0; // Total water level to 0
+        this.sunLevel = 0; // Sun level to 0
+        this.randomWater = 0; // Random water level set to 0
+        this.tilledSoilData = {}; // Data that tilled soil tiles have
+        this.tileSize = 32; // Setting tile size to 32 pixels
     }
 
     preload() {
@@ -73,6 +78,12 @@ class Play extends Phaser.Scene {
             fontSize: '50px',
             fill: '#ffffff'
         });
+
+        // Initialize the tilled soil grid data
+        this.initTilledSoilData();
+
+        // Draw the grid overlay
+        this.drawGrid();
     }
 
     update() {
@@ -102,10 +113,27 @@ class Play extends Phaser.Scene {
             this.timeElapsed += 1;  // Increment time by 1 each frame
             this.infoText.setText(`Time: ${this.timeElapsed}`);
             this.lastTimeIncrement = this.timeInterval;
+            for (const key in this.tilledSoilData) {
+                const tileData = this.tilledSoilData[key];
+                tileData.sunLevel = Math.floor(Math.random() * 3) + 1; // Generate random sun level for each tile
+                tileData.waterLevel += Math.floor(Math.random() * 2) + 1; // Generate random water level for each tile
+                if (tileData.sunLevel > 0) { // if the sun level has sun stored remove it
+                    tileData.sunLevel = 0;
+                }
+            }
         }
-
         if (this.lastTimeIncrement > 0) {
             this.lastTimeIncrement -= 100;
+        }
+
+        const tileX = Math.floor(this.player.x / this.tileSize);
+        const tileY = Math.floor(this.player.y / this.tileSize);
+
+        const currentTileData = this.getTilledSoilData(tileX, tileY);
+        if (currentTileData) {
+            console.log(
+                `Current Tile Sun: ${currentTileData.sunLevel}, Water: ${currentTileData.waterLevel}`
+            );
         }
     }
 
@@ -150,6 +178,56 @@ class Play extends Phaser.Scene {
                     }
                 }
             }
+        }
+    }
+
+    initTilledSoilData() {
+        // Iterate through all tiles in the farming layer
+        this.farmingLayer.forEachTile((tile) => {
+            if (tile.index !== -1) { // Don't use the empty tiles
+                // Store only the tiles from`tileset5`
+                this.tilledSoilData[`${tile.x},${tile.y}`] = {
+                    sunLevel: 0,
+                    waterLevel: Math.floor(Math.random() * 2) + 1
+
+                };
+            }
+        });
+    }
+
+    //Draws a grid overlay on the tilled soil spots that can have seeds planted on them
+    drawGrid() {
+        const graphics = this.add.graphics();
+        graphics.lineStyle(1, 0x00ff00, 0.5);
+
+        const width = this.map.widthInPixels;
+        const height = this.map.heightInPixels;
+
+        // Draws vertical lines
+        for (let x = 1312; x <= 1888; x += this.tileSize) {
+            graphics.lineBetween(x, 1312, x, 1888);
+        }
+
+        // Draws horizontal lines
+        for (let y = 1312; y <= 1888; y += this.tileSize) {
+            graphics.lineBetween(1312, y, 1888, y);
+        }
+
+        graphics.strokePath();
+    }
+
+    //Gets the data from the tilled soil at the specified location
+    getTilledSoilData(tileX, tileY) {
+        const key = `${tileX},${tileY}`;
+        return this.tilledSoilData[key] || null;
+    }
+
+
+    //Updates the data for the tilled soil at the specified location
+    updateTilledSoilData(tileX, tileY, newData) {
+        const key = `${tileX},${tileY}`;
+        if (this.tilledSoilData[key]) {
+            Object.assign(this.tilledSoilData[key], newData);
         }
     }
 }
