@@ -13,9 +13,11 @@ class Play extends Phaser.Scene {
     }
 
     preload() {
-        // Load tilemap, player, and tileset assets
+        // Load tilemap, player, tileset, and plant assets
         this.load.tilemapTiledJSON('gameMap', '../assets/gamemaptest6.tmj');
+
         this.load.image('player', '../assets/player.png');
+
         this.load.image('tileset1', '../assets/farming_fishing.png');
         this.load.image('tileset2', '../assets/fence_alt.png');
         this.load.image('tileset5', '../assets/plowed_soil.png');
@@ -23,6 +25,21 @@ class Play extends Phaser.Scene {
         this.load.image('tileset8', '../assets/sand.png');
         this.load.image('tileset9', '../assets/sandwater.png');
         this.load.image('tileset11', '../assets/tileset_preview.png');
+
+        this.load.image('plant1a', '../assets/Plant1A.png');
+        this.load.image('plant1b', '../assets/Plant1B.png');
+        this.load.image('plant1c', '../assets/Plant1C.png');
+        this.load.image('plant1d', '../assets/Plant1D.png');
+
+        this.load.image('plant2a', '../assets/Plant2A.png');
+        this.load.image('plant2b', '../assets/Plant2B.png');
+        this.load.image('plant2c', '../assets/Plant2C.png');
+        this.load.image('plant2d', '../assets/Plant2D.png');
+
+        this.load.image('plant3a', '../assets/Plant3A.png');
+        this.load.image('plant3b', '../assets/Plant3B.png');
+        this.load.image('plant3c', '../assets/Plant3C.png');
+        this.load.image('plant3d', '../assets/Plant3D.png');
     }
 
     create() {
@@ -65,7 +82,7 @@ class Play extends Phaser.Scene {
         // Add player to scene and allow player collision and player camera movement
         this.player = this.physics.add.sprite(1200, 1600, 'player', 0);
         this.player.body.setCollideWorldBounds(true);
-        this.player.setScale(1.5);
+        this.player.setScale(1);
 
         this.cameras.main.startFollow(this.player, true);
 
@@ -84,6 +101,8 @@ class Play extends Phaser.Scene {
 
         // Draw the grid overlay
         this.drawGrid();
+
+
     }
 
     update() {
@@ -110,7 +129,7 @@ class Play extends Phaser.Scene {
 
         // Increment time when T is held down
         if (this.cursors.incrementTime.isDown && this.lastTimeIncrement <= 0) {
-            this.timeElapsed += 1;  // Increment time by 1 each frame
+            this.timeElapsed += 1;  
             this.infoText.setText(`Time: ${this.timeElapsed}`);
             this.lastTimeIncrement = this.timeInterval;
             for (const key in this.tilledSoilData) {
@@ -137,40 +156,98 @@ class Play extends Phaser.Scene {
         }
     }
 
-    handlePlantingAndReaping() {
+    handlePlantingAndReaping()
+    {
         const tileSize = this.map.tileWidth;
+
         const playerTileX = Math.floor(this.player.x / tileSize);
         const playerTileY = Math.floor(this.player.y / tileSize);
 
         const farmingTile = this.farmingLayer.getTileAt(playerTileX, playerTileY);
         const canFarm = farmingTile !== null;
 
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.plant)) {
-            if (canFarm) {
-                const plant = this.add.graphics();
-                plant.fillStyle(0x00FF00, 1);
-                plant.fillRect(playerTileX * tileSize, playerTileY * tileSize, tileSize, tileSize);
+        const plantTypes = ['plant1a', 'plant2a', 'plant3a'];
 
-                plant.setData('tileX', playerTileX);
-                plant.setData('tileY', playerTileY);
+        //Player presses R to plant a plant
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.plant))
+        {
+            //Only plant if on a farming tile
+            if (canFarm)
+            {
+                let existingPlant = null;
 
-                if (!this.plants) {
-                    this.plants = [];
+                if (this.plants)
+                {
+                    for (let i = 0; i < this.plants.length; i++)
+                    {
+                        const plant = this.plants[i];
+
+                        const plantTileX = Math.floor(plant.x / tileSize);
+                        const plantTileY = Math.floor(plant.y / tileSize);
+
+                        if (plantTileX === playerTileX && plantTileY === playerTileY)
+                        {
+                            existingPlant = plant;
+                            break;
+                        }
+                    }
                 }
 
-                this.plants.push(plant);
+                //If a plant already exists on this tile, upgrade its level
+                if (existingPlant)
+                {
+                    const plantUpgrade = this.upgradePlantLevel(existingPlant);
+
+                    if (plantUpgrade)
+                    {
+                        existingPlant.setTexture(plantUpgrade);
+                    }
+
+                }
+
+                //If no plant exists, place a random plant out of the 3 types
+                else
+                {
+                    const randomPlantType = plantTypes[Math.floor(Math.random() * plantTypes.length)];
+
+                    const offsetX = 16;
+                    const offsetY = 16;
+
+                    const plant = this.add.sprite(
+                        (playerTileX * tileSize) + offsetX,
+                        (playerTileY * tileSize) + offsetY,
+                        randomPlantType,
+                    );
+
+                    plant.setDepth(10);
+
+                    if (!this.plants)
+                    {
+                        this.plants = [];
+                    }
+
+                    this.plants.push(plant);
+                }
             }
         }
 
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.reap)) {
-            if (canFarm) {
-                if (this.plants) {
-                    for (let i = 0; i < this.plants.length; i++) {
+        //Player presses F to reap a plant
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.reap))
+        {
+            //If on farming tile, reap plant
+            if (canFarm)
+            {
+                if (this.plants)
+                {
+                    for (let i = 0; i < this.plants.length; i++)
+                    {
                         const plant = this.plants[i];
-                        const plantX = plant.getData('tileX');
-                        const plantY = plant.getData('tileY');
+                        const plantX = plant.x;
+                        const plantY = plant.y;
 
-                        if (plantX === playerTileX && plantY === playerTileY) {
+                        if (Math.floor(plantX / tileSize) === playerTileX && Math.floor(plantY / tileSize) === playerTileY)
+                        {
+                            //destroy plant 
                             plant.destroy();
                             this.plants.splice(i, 1);
                             break;
@@ -180,6 +257,7 @@ class Play extends Phaser.Scene {
             }
         }
     }
+
 
     initTilledSoilData() {
         // Iterate through all tiles in the farming layer
@@ -229,5 +307,31 @@ class Play extends Phaser.Scene {
         if (this.tilledSoilData[key]) {
             Object.assign(this.tilledSoilData[key], newData);
         }
+    }
+
+    //Helper function to get the next upgrade level of a plant
+    upgradePlantLevel(plant)
+    {
+        const plantUpgradeMap = 
+        {
+            plant1a: 'plant1b',
+            plant1b: 'plant1c',
+            plant1c: 'plant1d',
+            plant2a: 'plant2b',
+            plant2b: 'plant2c',
+            plant2c: 'plant2d',
+            plant3a: 'plant3b',
+            plant3b: 'plant3c',
+            plant3c: 'plant3d',
+        };
+
+        const currentPlantType = plant.texture.key;
+
+        if (plantUpgradeMap[currentPlantType])
+        {
+            return plantUpgradeMap[currentPlantType];
+        }
+
+        return currentPlantType;
     }
 }
