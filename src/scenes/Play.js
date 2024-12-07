@@ -1,19 +1,19 @@
 class Play extends Phaser.Scene {
     init() {
-        // Initialize variables
-        this.VEL = 200;        // Player speed
-        this.timeElapsed = 0;  // Time starts at 0
+        //Initialize variables
+        this.VEL = 200;        //Player speed
+        this.timeElapsed = 0;  //Time starts at 0
         this.lastTimeIncrement = 0;
         this.timeInterval = 1000;
-        this.totalWater = 0; // Total water level to 0
-        this.sunLevel = 0; // Sun level to 0
-        this.randomWater = 0; // Random water level set to 0
-        this.tilledSoilData = {}; // Data that tilled soil tiles have
-        this.tileSize = 32; // Setting tile size to 32 pixels
+        this.totalWater = 0; //Total water level to 0
+        this.sunLevel = 0; //Sun level to 0
+        this.randomWater = 0; //Random water level set to 0
+        this.tilledSoilData = {}; //Data that tilled soil tiles have
+        this.tileSize = 32; //Setting tile size to 32 pixels
     }
 
     preload() {
-        // Load tilemap, player, tileset, and plant assets
+        //Load tilemap, player, tileset, and plant assets
         this.load.tilemapTiledJSON('gameMap', '../assets/gamemaptest6.tmj');
 
         this.load.image('player', '../assets/player.png');
@@ -43,7 +43,7 @@ class Play extends Phaser.Scene {
     }
 
     create() {
-        // Movement directions and plant/reap
+        //Movement directions and plant/reap
         this.cursors = this.input.keyboard.addKeys({
             'up': Phaser.Input.Keyboard.KeyCodes.W,
             'down': Phaser.Input.Keyboard.KeyCodes.S,
@@ -54,10 +54,10 @@ class Play extends Phaser.Scene {
             'incrementTime': Phaser.Input.Keyboard.KeyCodes.T
         });
 
-        // Add map to scene
+        //Add map to scene
         this.map = this.make.tilemap({ key: 'gameMap' });
 
-        // Add tilesets to be used in layers
+        //Add tilesets to be used in layers
         const tileset1 = this.map.addTilesetImage('farming_fishing', 'tileset1');
         const tileset2 = this.map.addTilesetImage('fence_alt', 'tileset2');
         const tileset5 = this.map.addTilesetImage('plowed_soil', 'tileset5');
@@ -66,7 +66,7 @@ class Play extends Phaser.Scene {
         const tileset9 = this.map.addTilesetImage('sandwater', 'tileset9');
         const tileset11 = this.map.addTilesetImage('tileset_preview', 'tileset11');
 
-        // Define each tile layer and handle collision
+        //Define each tile layer and handle collision
         const tileLayer1 = this.map.createLayer('Tile Layer 1', [tileset11, tileset5], 0, 0);
         const tileLayer2 = this.map.createLayer('Tile Layer 2', [tileset8], 0, 0);
         const tileLayer4 = this.map.createLayer('Tile Layer 4', [tileset7, tileset11], 0, 0);
@@ -79,7 +79,7 @@ class Play extends Phaser.Scene {
         this.collisionLayer.setCollisionByExclusion([-1]);
         collisionLayer2.setCollisionByExclusion([-1]);
 
-        // Add player to scene and allow player collision and player camera movement
+        //Add player to scene and allow player collision and player camera movement
         this.player = this.physics.add.sprite(1200, 1600, 'player', 0);
         this.player.body.setCollideWorldBounds(true);
         this.player.setScale(1);
@@ -90,23 +90,20 @@ class Play extends Phaser.Scene {
         this.physics.add.collider(this.player, collisionLayer2);
         this.physics.world.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
 
-        // Add text to the container for displaying time
-        this.infoText = this.add.text(1030, 1300, `Time: ${this.timeElapsed}`, {
+        this.infoText = this.add.text(this.cameras.main.worldView.centerX, this.cameras.main.worldView.centerY - 250, `Time: 00:00`, {
             fontSize: '50px',
             fill: '#ffffff'
-        });
+        }).setOrigin(0.5).setScrollFactor(0);
 
-        // Initialize the tilled soil grid data
         this.initTilledSoilData();
 
-        // Draw the grid overlay
         this.drawGrid();
 
 
     }
 
-    update() {
-        // Update player movement
+    update() 
+    {
         this.direction = new Phaser.Math.Vector2(0);
 
         if (this.cursors.left.isDown) {
@@ -124,24 +121,34 @@ class Play extends Phaser.Scene {
         this.direction.normalize();
         this.player.setVelocity(this.VEL * this.direction.x, this.VEL * this.direction.y);
 
-        // Handle planting and reaping
         this.handlePlantingAndReaping();
 
-        // Increment time when T is held down
-        if (this.cursors.incrementTime.isDown && this.lastTimeIncrement <= 0) {
-            this.timeElapsed += 1;  
-            this.infoText.setText(`Time: ${this.timeElapsed}`);
+        //Increment time when T is held down
+        if (this.cursors.incrementTime.isDown && this.lastTimeIncrement <= 0) 
+        {
+            this.timeElapsed += 1;
+            this.updateTimeDisplay();
             this.lastTimeIncrement = this.timeInterval;
-            for (const key in this.tilledSoilData) {
+    
+            for (const key in this.tilledSoilData) 
+            {
                 const tileData = this.tilledSoilData[key];
-                tileData.sunLevel = Math.floor(Math.random() * 3) + 1; // Generate random sun level for each tile
-                tileData.waterLevel += Math.floor(Math.random() * 2) + 1; // Generate random water level for each tile
-                if (tileData.sunLevel > 0) { // if the sun level has sun stored remove it
-                    tileData.sunLevel = 0;
-                }
+                //console.log(`Before added - Tile ${key}: Sun = ${tileData.sunLevel}, Water = ${tileData.waterLevel}`);
+
+                tileData.sunLevel += Math.floor(Math.random() * 10) + 1;
+                tileData.waterLevel += Math.floor(Math.random() * 2) + 1;
+
+                //console.log(`After added - Tile ${key}: Sun = ${tileData.sunLevel}, Water = ${tileData.waterLevel}`);
+    
+                const [tileX, tileY] = key.split(',').map(Number);
+                this.checkPlantGrowth(tileX, tileY);
+
+                console.log(`After subtracted - Tile ${key}: Sun = ${tileData.sunLevel}, Water = ${tileData.waterLevel}`);
             }
         }
-        if (this.lastTimeIncrement > 0) {
+    
+        if (this.lastTimeIncrement > 0) 
+        {
             this.lastTimeIncrement -= 100;
         }
 
@@ -149,105 +156,94 @@ class Play extends Phaser.Scene {
         const tileY = Math.floor(this.player.y / this.tileSize);
 
         const currentTileData = this.getTilledSoilData(tileX, tileY);
+        /*
         if (currentTileData) {
-            console.log(
-                `Current Tile Sun: ${currentTileData.sunLevel}, Water: ${currentTileData.waterLevel}`
-            );
+        console.log(
+            `Tile (${tileX}, ${tileY}): Sun = ${currentTileData.sunLevel}, Water = ${currentTileData.waterLevel}`
+        );
         }
+        */
     }
 
-    handlePlantingAndReaping()
-    {
+    handlePlantingAndReaping() {
         const tileSize = this.map.tileWidth;
-
+    
         const playerTileX = Math.floor(this.player.x / tileSize);
         const playerTileY = Math.floor(this.player.y / tileSize);
-
+    
         const farmingTile = this.farmingLayer.getTileAt(playerTileX, playerTileY);
         const canFarm = farmingTile !== null;
-
+    
         const plantTypes = ['plant1a', 'plant2a', 'plant3a'];
-
-        //Player presses R to plant a plant
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.plant))
-        {
-            //Only plant if on a farming tile
-            if (canFarm)
-            {
+    
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.plant)) {
+            if (canFarm) {
                 let existingPlant = null;
-
-                if (this.plants)
-                {
-                    for (let i = 0; i < this.plants.length; i++)
-                    {
+    
+                //Check if a plant already exists on this tile
+                if (this.plants) {
+                    for (let i = 0; i < this.plants.length; i++) {
                         const plant = this.plants[i];
-
+    
                         const plantTileX = Math.floor(plant.x / tileSize);
                         const plantTileY = Math.floor(plant.y / tileSize);
-
-                        if (plantTileX === playerTileX && plantTileY === playerTileY)
-                        {
+    
+                        if (plantTileX === playerTileX && plantTileY === playerTileY) {
                             existingPlant = plant;
                             break;
                         }
                     }
                 }
-
-                //If a plant already exists on this tile, upgrade its level
-                if (existingPlant)
+    
+                //If a plant exists, destroy it and place a new one
+                if (existingPlant) 
                 {
-                    const plantUpgrade = this.upgradePlantLevel(existingPlant);
+                    existingPlant.destroy();
 
-                    if (plantUpgrade)
+                    const index = this.plants.indexOf(existingPlant);
+                    if (index !== -1) 
                     {
-                        existingPlant.setTexture(plantUpgrade);
+                        this.plants.splice(index, 1);
                     }
-
                 }
-
-                //If no plant exists, place a random plant out of the 3 types
-                else
+    
+                //Place a new random plant
+                const randomPlantType = plantTypes[Math.floor(Math.random() * plantTypes.length)];
+    
+                const offsetX = 16;
+                const offsetY = 16;
+    
+                const newPlant = this.add.sprite(
+                    (playerTileX * tileSize) + offsetX,
+                    (playerTileY * tileSize) + offsetY,
+                    randomPlantType,
+                );
+    
+                newPlant.setDepth(10);
+    
+                if (!this.plants) 
                 {
-                    const randomPlantType = plantTypes[Math.floor(Math.random() * plantTypes.length)];
-
-                    const offsetX = 16;
-                    const offsetY = 16;
-
-                    const plant = this.add.sprite(
-                        (playerTileX * tileSize) + offsetX,
-                        (playerTileY * tileSize) + offsetY,
-                        randomPlantType,
-                    );
-
-                    plant.setDepth(10);
-
-                    if (!this.plants)
-                    {
-                        this.plants = [];
-                    }
-
-                    this.plants.push(plant);
+                    this.plants = [];
                 }
+    
+                this.plants.push(newPlant);
             }
         }
-
-        //Player presses F to reap a plant
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.reap))
+    
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.reap)) 
         {
-            //If on farming tile, reap plant
-            if (canFarm)
+            if (canFarm) 
             {
-                if (this.plants)
+                if (this.plants) 
                 {
-                    for (let i = 0; i < this.plants.length; i++)
+                    for (let i = 0; i < this.plants.length; i++) 
                     {
                         const plant = this.plants[i];
                         const plantX = plant.x;
                         const plantY = plant.y;
-
-                        if (Math.floor(plantX / tileSize) === playerTileX && Math.floor(plantY / tileSize) === playerTileY)
+    
+                        if (Math.floor(plantX / tileSize) === playerTileX && Math.floor(plantY / tileSize) === playerTileY) 
                         {
-                            //destroy plant 
                             plant.destroy();
                             this.plants.splice(i, 1);
                             break;
@@ -257,14 +253,19 @@ class Play extends Phaser.Scene {
             }
         }
     }
+    
+    
 
 
-    initTilledSoilData() {
-        // Iterate through all tiles in the farming layer
-        this.farmingLayer.forEachTile((tile) => {
-            if (tile.index !== -1) { // Don't use the empty tiles
-                // Store only the tiles from`tileset5`
-                this.tilledSoilData[`${tile.x},${tile.y}`] = {
+
+    initTilledSoilData() 
+    {
+        this.farmingLayer.forEachTile((tile) => 
+        {
+            if (tile.index !== -1) 
+            { 
+                this.tilledSoilData[`${tile.x},${tile.y}`] = 
+                {
                     sunLevel: 0,
                     waterLevel: Math.floor(Math.random() * 2) + 1
 
@@ -274,37 +275,40 @@ class Play extends Phaser.Scene {
     }
 
     //Draws a grid overlay on the tilled soil spots that can have seeds planted on them
-    drawGrid() {
+    drawGrid() 
+    {
         const graphics = this.add.graphics();
         graphics.lineStyle(1, 0x00ff00, 0.5);
 
         const width = this.map.widthInPixels;
         const height = this.map.heightInPixels;
 
-        // Draws vertical lines
-        for (let x = 1312; x <= 1888; x += this.tileSize) {
+        for (let x = 1312; x <= 1888; x += this.tileSize) 
+        {
             graphics.lineBetween(x, 1312, x, 1888);
         }
 
-        // Draws horizontal lines
-        for (let y = 1312; y <= 1888; y += this.tileSize) {
+        for (let y = 1312; y <= 1888; y += this.tileSize) 
+        {
             graphics.lineBetween(1312, y, 1888, y);
         }
 
         graphics.strokePath();
     }
 
-    //Gets the data from the tilled soil at the specified location
-    getTilledSoilData(tileX, tileY) {
+    getTilledSoilData(tileX, tileY) 
+    {
         const key = `${tileX},${tileY}`;
         return this.tilledSoilData[key] || null;
     }
 
 
-    //Updates the data for the tilled soil at the specified location
-    updateTilledSoilData(tileX, tileY, newData) {
+    updateTilledSoilData(tileX, tileY, newData) 
+    {
         const key = `${tileX},${tileY}`;
-        if (this.tilledSoilData[key]) {
+
+        if (this.tilledSoilData[key]) 
+        {
             Object.assign(this.tilledSoilData[key], newData);
         }
     }
@@ -333,5 +337,85 @@ class Play extends Phaser.Scene {
         }
 
         return currentPlantType;
+    }
+
+    updateTimeDisplay()
+    {
+        const minutes = Math.floor(this.timeElapsed / 60);
+        const seconds = this.timeElapsed % 60;
+
+        const timeString = `${this.padTime(minutes)}:${this.padTime(seconds)}`;
+        this.infoText.setText(`Time: ${timeString}`);
+    }
+
+    padTime(time)
+    {
+        return time < 10 ? `0${time}` : time.toString();
+    }
+
+    //Checks if a plant is eligible to grow based on specific conditions
+    checkPlantGrowth(tileX, tileY) 
+    {
+        const key = `${tileX},${tileY}`;
+        const tileData = this.tilledSoilData[key];
+    
+        if (!tileData) return;
+    
+        const nearbyPlants = this.getNearbyPlants(tileX, tileY, 3);
+        const waterRequirement = 5
+        const sunRequirement = 5;
+    
+        //A plant can only grow if its sun level is >= 5, water level is >= 5, and there is at least one nearby plant
+        if (tileData.sunLevel >= sunRequirement && tileData.waterLevel >= waterRequirement && nearbyPlants.length >= 2) 
+        {
+            tileData.sunLevel -= sunRequirement;
+            tileData.waterLevel -= waterRequirement;
+    
+            const plant = this.getPlantAt(tileX, tileY);
+
+            if (plant) 
+            {
+                const newTexture = this.upgradePlantLevel(plant);
+
+                if (newTexture) 
+                {
+                    plant.setTexture(newTexture);
+                }
+            }
+        }
+    }
+    
+    //Checks if there are plants located next to another plant in a given tile range
+    getNearbyPlants(tileX, tileY, range) 
+    {
+        if (!this.plants) return [];
+    
+        return this.plants.filter(plant => 
+        {
+            const plantTileX = Math.floor(plant.x / this.tileSize);
+            const plantTileY = Math.floor(plant.y / this.tileSize);
+    
+            const distance = Math.sqrt(Math.pow(tileX - plantTileX, 2) + Math.pow(tileY - plantTileY, 2));
+    
+            return distance <= range;
+        });
+    }
+    
+    //Returns plant location
+    getPlantAt(tileX, tileY) 
+    {
+        if (!this.plants) 
+        {
+            return null;
+        }
+    
+        const tileSize = this.map.tileWidth;
+    
+        return this.plants.find(plant => 
+        {
+            const plantTileX = Math.floor(plant.x / tileSize);
+            const plantTileY = Math.floor(plant.y / tileSize);
+            return plantTileX === tileX && plantTileY === tileY;
+        }) || null;
     }
 }
