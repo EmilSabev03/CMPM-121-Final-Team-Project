@@ -14,32 +14,32 @@ class Play extends Phaser.Scene {
 
     preload() {
         //Load tilemap, player, tileset, and plant assets
-        this.load.tilemapTiledJSON('gameMap', '../assets/gamemaptest6.tmj');
+        this.load.tilemapTiledJSON('gameMap', '/assets/gamemaptest6.tmj');
 
-        this.load.image('player', '../assets/player.png');
+        this.load.image('player', '/assets/player.png');
 
-        this.load.image('tileset1', '../assets/farming_fishing.png');
-        this.load.image('tileset2', '../assets/fence_alt.png');
-        this.load.image('tileset5', '../assets/plowed_soil.png');
-        this.load.image('tileset7', '../assets/reed.png');
-        this.load.image('tileset8', '../assets/sand.png');
-        this.load.image('tileset9', '../assets/sandwater.png');
-        this.load.image('tileset11', '../assets/tileset_preview.png');
+        this.load.image('tileset1', '/assets/farming_fishing.png');
+        this.load.image('tileset2', '/assets/fence_alt.png');
+        this.load.image('tileset5', '/assets/plowed_soil.png');
+        this.load.image('tileset7', '/assets/reed.png');
+        this.load.image('tileset8', '/assets/sand.png');
+        this.load.image('tileset9', '/assets/sandwater.png');
+        this.load.image('tileset11', '/assets/tileset_preview.png');
 
-        this.load.image('plant1a', '../assets/Plant1A.png');
-        this.load.image('plant1b', '../assets/Plant1B.png');
-        this.load.image('plant1c', '../assets/Plant1C.png');
-        this.load.image('plant1d', '../assets/Plant1D.png');
+        this.load.image('plant1a', '/assets/Plant1A.png');
+        this.load.image('plant1b', '/assets/Plant1B.png');
+        this.load.image('plant1c', '/assets/Plant1C.png');
+        this.load.image('plant1d', '/assets/Plant1D.png');
 
-        this.load.image('plant2a', '../assets/Plant2A.png');
-        this.load.image('plant2b', '../assets/Plant2B.png');
-        this.load.image('plant2c', '../assets/Plant2C.png');
-        this.load.image('plant2d', '../assets/Plant2D.png');
+        this.load.image('plant2a', '/assets/Plant2A.png');
+        this.load.image('plant2b', '/assets/Plant2B.png');
+        this.load.image('plant2c', '/assets/Plant2C.png');
+        this.load.image('plant2d', '/assets/Plant2D.png');
 
-        this.load.image('plant3a', '../assets/Plant3A.png');
-        this.load.image('plant3b', '../assets/Plant3B.png');
-        this.load.image('plant3c', '../assets/Plant3C.png');
-        this.load.image('plant3d', '../assets/Plant3D.png');
+        this.load.image('plant3a', '/assets/Plant3A.png');
+        this.load.image('plant3b', '/assets/Plant3B.png');
+        this.load.image('plant3c', '/assets/Plant3C.png');
+        this.load.image('plant3d', '/assets/Plant3D.png');
     }
 
     create() {
