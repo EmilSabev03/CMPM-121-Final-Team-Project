@@ -142,19 +142,13 @@ class Play extends Phaser.Scene {
 
             const [tileX, tileY] = key.split(',').map(Number);
             this.checkPlantGrowth(tileX, tileY);
+            tileData.sunLevel = 0;
         }
     }
 
     if (this.lastTimeIncrement > 0) {
         this.lastTimeIncrement -= 100;
     }
-        /*
-        if (currentTileData) {
-        console.log(
-            `Tile (${tileX}, ${tileY}): Sun = ${currentTileData.sunLevel}, Water = ${currentTileData.waterLevel}`
-        );
-        }
-        */
     }
 
     handlePlantingAndReaping() {
