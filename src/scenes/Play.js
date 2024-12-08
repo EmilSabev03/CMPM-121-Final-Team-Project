@@ -155,11 +155,17 @@ class Play extends Phaser.Scene {
     }
 
     handlePlantingAndReaping() {
+
+        if (!this.farmingLayer)
+        {
+            return;
+        }
+
         const tileSize = this.map.tileWidth;
     
         const playerTileX = Math.floor(this.player.x / tileSize);
         const playerTileY = Math.floor(this.player.y / tileSize);
-    
+
         const farmingTile = this.farmingLayer.getTileAt(playerTileX, playerTileY);
         const canFarm = farmingTile !== null;
     
