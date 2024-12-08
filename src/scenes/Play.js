@@ -73,10 +73,10 @@ class Play extends Phaser.Scene {
 
         this.farmingLayer = this.map.createLayer('Farming Layer', tileset5, 0, 0);
 
-        this.collisionLayer = this.map.createLayer('Collision Layer 1', [tileset1, tileset11, tileset2, tileset9], 0, 0);
+        const collisionLayer = this.map.createLayer('Collision Layer 1', [tileset1, tileset11, tileset2, tileset9], 0, 0);
         const collisionLayer2 = this.map.createLayer('Collision Layer 2', [tileset1, tileset11, tileset2, tileset7], 0, 0);
 
-        this.collisionLayer.setCollisionByExclusion([-1]);
+        collisionLayer.setCollisionByExclusion([-1]);
         collisionLayer2.setCollisionByExclusion([-1]);
 
         //Add player to scene and allow player collision and player camera movement
@@ -86,7 +86,7 @@ class Play extends Phaser.Scene {
 
         this.cameras.main.startFollow(this.player, true);
 
-        this.physics.add.collider(this.player, this.collisionLayer);
+        this.physics.add.collider(this.player, collisionLayer);
         this.physics.add.collider(this.player, collisionLayer2);
         this.physics.world.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
 
