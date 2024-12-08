@@ -246,18 +246,21 @@ class Play extends Phaser.Scene {
 
     initTilledSoilData() 
     {
-        this.farmingLayer.forEachTile((tile) => 
+        if (this.farmingLayer)
         {
-            if (tile.index !== -1) 
-            { 
-                this.tilledSoilData[`${tile.x},${tile.y}`] = 
-                {
-                    sunLevel: 0,
-                    waterLevel: Math.floor(Math.random() * 2) + 1
+            this.farmingLayer.forEachTile((tile) => 
+            {
+                if (tile.index !== -1) 
+                { 
+                    this.tilledSoilData[`${tile.x},${tile.y}`] = 
+                    {
+                        sunLevel: 0,
+                        waterLevel: Math.floor(Math.random() * 2) + 1
 
-                };
-            }
-        });
+                    };
+                }
+            });
+        }
     }
 
     //Draws a grid overlay on the tilled soil spots that can have seeds planted on them
