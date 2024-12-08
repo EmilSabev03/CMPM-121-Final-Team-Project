@@ -76,8 +76,11 @@ class Play extends Phaser.Scene {
         const collisionLayer = this.map.createLayer('Collision Layer 1', [tileset1, tileset11, tileset2, tileset9], 0, 0);
         const collisionLayer2 = this.map.createLayer('Collision Layer 2', [tileset1, tileset11, tileset2, tileset7], 0, 0);
 
-        collisionLayer.setCollisionByExclusion([-1]);
-        collisionLayer2.setCollisionByExclusion([-1]);
+        if (collisionLayer && collisionLayer2)
+        {
+            collisionLayer.setCollisionByExclusion([-1]);
+            collisionLayer2.setCollisionByExclusion([-1]);
+        }
 
         //Add player to scene and allow player collision and player camera movement
         this.player = this.physics.add.sprite(1200, 1600, 'player', 0);
