@@ -288,17 +288,6 @@ class Play extends Phaser.Scene {
         return this.tilledSoilData[key] || null;
     }
 
-
-    updateTilledSoilData(tileX, tileY, newData) 
-    {
-        const key = `${tileX},${tileY}`;
-
-        if (this.tilledSoilData[key]) 
-        {
-            Object.assign(this.tilledSoilData[key], newData);
-        }
-    }
-
     //Helper function to get the next upgrade level of a plant
     upgradePlantLevel(plant)
     {
