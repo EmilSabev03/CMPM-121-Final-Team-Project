@@ -239,9 +239,6 @@ class Play extends Phaser.Scene {
             }
         }
     }
-    
-    
-
 
 
     initTilledSoilData() 
