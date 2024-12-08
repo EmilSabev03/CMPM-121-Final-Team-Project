@@ -14,7 +14,7 @@ class Play extends Phaser.Scene {
 
     preload() {
         //Load tilemap, player, tileset, and plant assets
-        this.load.tilemapTiledJSON('gameMap', '../assets/gamemaptest6.tmj');
+        this.load.tilemapTiledJSON('gameMap', './assets/gamemaptest6.tmj');
 
         this.load.image('player', './assets/player.png');
 
