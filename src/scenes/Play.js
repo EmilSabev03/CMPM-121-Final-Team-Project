@@ -23,6 +23,9 @@ class Play extends Phaser.Scene
         this.view = new DataView(this.gameStateBuffer);
 
         this.saveMenu = null;
+
+        this.undoStack = [];
+        this.redoStack = [];
     }
 
     preload() {
@@ -161,6 +164,12 @@ class Play extends Phaser.Scene
                 }
             }
         }
+
+        const savedUndoStack = localStorage.getItem('undoStack');
+        const savedRedoStack = localStorage.getItem('redoStack');
+
+        this.undoStack = savedUndoStack ? JSON.parse(savedUndoStack) : [];
+        this.redoStack = savedRedoStack ? JSON.parse(savedRedoStack) : [];
     }
 
 
@@ -168,67 +177,71 @@ class Play extends Phaser.Scene
     {
         //Update player movement
         this.direction = new Phaser.Math.Vector2(0);
-
+    
         if (this.cursors.left.isDown) {
             this.direction.x = -1;
         } else if (this.cursors.right.isDown) {
             this.direction.x = 1;
         }
-
+    
         if (this.cursors.up.isDown) {
             this.direction.y = -1;
         } else if (this.cursors.down.isDown) {
             this.direction.y = 1;
         }
-
+    
         this.direction.normalize();
         this.player.setVelocity(this.VEL * this.direction.x, this.VEL * this.direction.y);
-
-
-        //If player presses K, create a new save key and update game state
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.saveGameState))
+    
+        //Save game state when K is pressed
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.saveGameState)) 
         {
             const saveKey = `manualSave_${new Date().getTime()}`;
             this.updateGameState(saveKey);
         }
-
-        //If player presses M, display the saves menu
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.displayMenu))
+    
+        //Display save menu when M is pressed
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.displayMenu)) 
         {
             this.displaySavesMenu();
         }
-
-
+    
         this.handlePlantingAndReaping();
-
+    
         const numDPlants = this.countPlantsOfType('plant1d') + this.countPlantsOfType('plant2d') + this.countPlantsOfType('plant3d');
-        if (numDPlants >= 5) {
+
+        if (numDPlants >= 5) 
+        {
             this.displayWinMessage();
         }
-
-        if (this.cursors.incrementTime.isDown && this.lastTimeIncrement <= 0) {
+    
+        if (this.cursors.incrementTime.isDown && this.lastTimeIncrement <= 0) 
+        {
+            this.saveToUndoStack();
             this.timeElapsed += 1;
             this.updateTimeDisplay();
             this.lastTimeIncrement = this.timeInterval;
-
-            for (const key in this.tilledSoilData) {
+    
+            for (const key in this.tilledSoilData) 
+            {
                 const tileData = this.tilledSoilData[key];
                 tileData.sunLevel += Math.floor(Math.random() * 10) + 1;
                 tileData.waterLevel += Math.floor(Math.random() * 2) + 1;
-
+    
                 const [tileX, tileY] = key.split(',').map(Number);
                 this.checkPlantGrowth(tileX, tileY);
                 tileData.sunLevel = 0;
             }
         }
-
+    
         if (this.lastTimeIncrement > 0) 
         {
             this.lastTimeIncrement -= 100;
         }
-
+    
         this.autoSaveGameState();
     }
+    
 
     displaySavesMenu() 
     {
@@ -274,6 +287,11 @@ class Play extends Phaser.Scene
         {
             localStorage.setItem('manualSaves', JSON.stringify([]));
             localStorage.removeItem('gameState'); 
+
+            this.undoStack = [];
+            this.redoStack = [];
+            localStorage.removeItem('undoStack');
+            localStorage.removeItem('redoStack');
             
             console.log('All saved states cleared. Game resetting to initial state.');
             
@@ -306,7 +324,7 @@ class Play extends Phaser.Scene
             this.cameras.main.centerX,
             this.cameras.main.centerY + 160,
             'Close',
-            { fontSize: '16px', fill: '#ff0000' }
+            { fontSize: '16px', fill: '#ffffff' }
         ).setOrigin(0.5).setInteractive().setScrollFactor(0);
     
         closeMenuButton.on('pointerdown', () => 
@@ -325,7 +343,7 @@ class Play extends Phaser.Scene
         {
             const saveText = this.add.text
             (
-                this.cameras.main.centerX - 200,
+                this.cameras.main.centerX - 180,
                 startY + index * saveEntryHeight - 30,
                 `${save.saveKey} (${new Date(save.timestamp).toLocaleString()})`,
                 { fontSize: '14px', fill: '#ffffff' }
@@ -333,7 +351,7 @@ class Play extends Phaser.Scene
     
             const loadButton = this.add.text
             (
-                this.cameras.main.centerX - 225,
+                this.cameras.main.centerX - 215,
                 startY + index * saveEntryHeight - 22,
                 'Load',
                 { fontSize: '14px', fill: '#00ff00' }
@@ -348,6 +366,28 @@ class Play extends Phaser.Scene
     
             this.saveMenu.add([saveText, loadButton]);
         });
+
+        //Undo/redo functionality in the menu
+        const undoButton = this.add.text(
+            this.cameras.main.centerX - 120,
+            this.cameras.main.centerY + 160,
+            'Undo',
+            { fontSize: '16px', fill: '#0000FF' }
+        ).setOrigin(0.5).setInteractive().setScrollFactor(0);
+        
+        undoButton.on('pointerdown', () => this.undo());
+        this.saveMenu.add(undoButton);
+        
+        const redoButton = this.add.text(
+            this.cameras.main.centerX + 120,
+            this.cameras.main.centerY + 160,
+            'Redo',
+            { fontSize: '16px', fill: '#0000FF' }
+        ).setOrigin(0.5).setInteractive().setScrollFactor(0);
+        
+        redoButton.on('pointerdown', () => this.redo());
+        this.saveMenu.add(redoButton);
+        
     
         //If no saves exist, display an empty menu
         if (savedStates.length === 0) 
@@ -363,6 +403,7 @@ class Play extends Phaser.Scene
             this.saveMenu.add(noSavesText);
         }
     }
+
 
     //Function to automatically save the game's state, used in update() every frame
     autoSaveGameState()
@@ -462,7 +503,7 @@ class Play extends Phaser.Scene
     
     loadGameState(savedData) 
     {
-        // Check if saved state exists
+        //Check if saved state exists
         if (!savedData || savedData.length < 6) 
         {
             this.player.x = 1200;
@@ -478,7 +519,7 @@ class Play extends Phaser.Scene
 
         this.tilledSoilData = {};
 
-        // Load player position, time elapsed, and soil tile data from local storage
+        //Load player position, time elapsed, and soil tile data from local storage
         let offset = 0;
 
         this.player.x = savedData[offset++] | (savedData[offset++] << 8);
@@ -506,7 +547,7 @@ class Play extends Phaser.Scene
             this.tilledSoilData[key].sunLevel = sunLevel;
             this.tilledSoilData[key].waterLevel = waterLevel;
 
-            // Add plant sprite
+            //Add plant sprite
             if (plantTypeInt > 0)
             {
                 const plantType = this.intToPlantType(plantTypeInt);
@@ -523,8 +564,85 @@ class Play extends Phaser.Scene
             }
         }
     }
-
     
+
+    saveToUndoStack() 
+    {
+        const currentState = JSON.stringify(this.tilledSoilData);
+        this.undoStack.push(currentState);
+        this.redoStack = []; 
+    
+        localStorage.setItem('undoStack', JSON.stringify(this.undoStack));
+        localStorage.setItem('redoStack', JSON.stringify(this.redoStack));
+    }
+    
+    
+    undo() 
+    {
+        if (this.undoStack.length > 0) 
+        {
+            const currentState = JSON.stringify(this.tilledSoilData);
+            this.redoStack.push(currentState);
+    
+            const previousState = this.undoStack.pop();
+            this.tilledSoilData = JSON.parse(previousState);
+    
+            localStorage.setItem('undoStack', JSON.stringify(this.undoStack));
+            localStorage.setItem('redoStack', JSON.stringify(this.redoStack));
+    
+            this.refreshPlants();
+        }
+    }
+    
+    
+    redo() 
+    {
+        if (this.redoStack.length > 0) 
+        {
+            const currentState = JSON.stringify(this.tilledSoilData);
+            this.undoStack.push(currentState);
+    
+            const nextState = this.redoStack.pop();
+            this.tilledSoilData = JSON.parse(nextState);
+    
+            localStorage.setItem('undoStack', JSON.stringify(this.undoStack));
+            localStorage.setItem('redoStack', JSON.stringify(this.redoStack));
+    
+            this.refreshPlants();
+        }
+    }
+    
+    
+    refreshPlants() 
+    {
+        if (this.plants) 
+        {
+            this.plants.forEach(plant => plant.destroy());
+        }
+
+        this.plants = [];
+    
+        for (const [key, tileData] of Object.entries(this.tilledSoilData)) 
+            {
+
+            const [tileX, tileY] = key.split(',').map(Number);
+            if (tileData.plantType > 0) 
+            {
+                const plantType = this.intToPlantType(tileData.plantType);
+                const plantSprite = this.add.sprite
+                (
+                    tileX * this.tileSize + 16,
+                    tileY * this.tileSize + 16,
+                    plantType
+                );
+
+                plantSprite.setData('tileKey', key);
+                this.plants.push(plantSprite);
+            }
+        }
+    }
+    
+
     
     //Helper functions for plant type conversion
     plantTypeToInt(plantType) 
@@ -557,62 +675,41 @@ class Play extends Phaser.Scene
     {
         const playerTileX = Math.floor(this.player.x / this.tileSize);
         const playerTileY = Math.floor(this.player.y / this.tileSize);
-
         const tileKey = `${playerTileX},${playerTileY}`;
     
-        if (!this.tilledSoilData[tileKey])
-        {
-            return;
-        }
+        if (!this.tilledSoilData[tileKey]) return;
     
-        //Plant if player presses R
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.plant)) 
-        {
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.plant)) {
             const plantTypes = ['plant1a', 'plant2a', 'plant3a'];
-
             const randomPlantType = plantTypes[Math.floor(Math.random() * plantTypes.length)];
-            const plantTypeInt = this.plantTypeToInt(randomPlantType);
     
-            //Don't plant if plant already exists on tile
-            if (this.tilledSoilData[tileKey].plantType !== 0) 
-            {
-                return;
+            if (this.tilledSoilData[tileKey].plantType === 0) {
+                this.saveToUndoStack(); 
+    
+                this.tilledSoilData[tileKey].plantType = this.plantTypeToInt(randomPlantType);
+    
+                const plantSprite = this.add.sprite(
+                    playerTileX * this.tileSize + 16,
+                    playerTileY * this.tileSize + 16,
+                    randomPlantType
+                );
+    
+                if (!this.plants) this.plants = [];
+                plantSprite.setData('tileKey', tileKey);
+                this.plants.push(plantSprite);
             }
-
-            this.tilledSoilData[tileKey].plantType = plantTypeInt;
-    
-            const plantSprite = this.add.sprite
-            (
-                playerTileX * this.tileSize + 16,
-                playerTileY * this.tileSize + 16,
-                randomPlantType
-            );
-    
-            if (!this.plants) 
-            {
-                this.plants = [];
-            }
-
-            plantSprite.setData('tileKey', tileKey); 
-            this.plants.push(plantSprite);
-    
         }
     
-        //Reap if player presses F
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.reap)) 
-        {
-            if (this.tilledSoilData[tileKey].plantType !== 0) 
-            {
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.reap)) {
+            if (this.tilledSoilData[tileKey].plantType !== 0) {
+                this.saveToUndoStack(); 
+    
                 this.tilledSoilData[tileKey].plantType = 0;
     
-                if (this.plants) 
-                {
-                    for (let i = 0; i < this.plants.length; i++) 
-                    {
+                if (this.plants) {
+                    for (let i = 0; i < this.plants.length; i++) {
                         const plantSprite = this.plants[i];
-
-                        if (plantSprite.getData('tileKey') === tileKey) 
-                        {
+                        if (plantSprite.getData('tileKey') === tileKey) {
                             plantSprite.destroy();
                             this.plants.splice(i, 1);
                             break;
@@ -622,6 +719,7 @@ class Play extends Phaser.Scene
             }
         }
     }
+    
     
 
     initTilledSoilData() 
