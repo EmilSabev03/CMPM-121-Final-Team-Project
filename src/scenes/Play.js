@@ -64,7 +64,7 @@ class Play extends Phaser.Scene
     create() {
         // Access translations and set default language
         this.translations = this.cache.json.get('translations');
-        this.selectedLanguage = 'es'; // Default language
+        this.selectedLanguage = 'en'; // Default language
 
         // Add key bindings for language selection
         this.createKeyBindings();
