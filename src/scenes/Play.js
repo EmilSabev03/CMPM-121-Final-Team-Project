@@ -1,15 +1,26 @@
-class Play extends Phaser.Scene {
+class Play extends Phaser.Scene 
+{
     init() {
         //Initialize variables
-        this.VEL = 200;        //Player speed
-        this.timeElapsed = 0;  //Time starts at 0
+        this.VEL = 200;       
+
+        this.timeElapsed = 0; 
         this.lastTimeIncrement = 0;
         this.timeInterval = 1000;
-        this.totalWater = 0; //Total water level to 0
-        this.sunLevel = 0; //Sun level to 0
-        this.randomWater = 0; //Random water level set to 0
-        this.tilledSoilData = {}; //Data that tilled soil tiles have
-        this.tileSize = 32; //Setting tile size to 32 pixels
+
+        this.tilledSoilData = {}; 
+
+        this.tileSize = 32; 
+        this.tileDataSize = 4;
+        this.playerDataSize = 8;
+        this.timeDataSize = 4;
+
+        this.maxPlants = 324;
+        this.plantDataSize = 12;
+
+        this.gameStateSize = this.playerDataSize + (this.maxPlants * this.plantDataSize) + this.timeDataSize;
+        this.gameStateBuffer = new ArrayBuffer(this.gameStateSize);
+        this.view = new DataView(this.gameStateBuffer);
     }
 
     preload() {
@@ -99,147 +110,252 @@ class Play extends Phaser.Scene {
         }).setOrigin(0.5).setScrollFactor(0);
 
         this.initTilledSoilData();
-
         this.drawGrid();
 
+        //Load the game state upon refresh 
+        const savedState = localStorage.getItem('gameState');
 
+        
+        if (savedState) 
+        {
+            const savedData = new Uint8Array(JSON.parse(savedState));
+            this.loadGameState(savedData);
+        }
+        
     }
 
     update() 
-{
-    this.direction = new Phaser.Math.Vector2(0);
+    {
+        this.direction = new Phaser.Math.Vector2(0);
 
-    if (this.cursors.left.isDown) {
-        this.direction.x = -1;
-    } else if (this.cursors.right.isDown) {
-        this.direction.x = 1;
+        if (this.cursors.left.isDown) {
+            this.direction.x = -1;
+        } else if (this.cursors.right.isDown) {
+            this.direction.x = 1;
+        }
+
+        if (this.cursors.up.isDown) {
+            this.direction.y = -1;
+        } else if (this.cursors.down.isDown) {
+            this.direction.y = 1;
+        }
+
+        this.direction.normalize();
+        this.player.setVelocity(this.VEL * this.direction.x, this.VEL * this.direction.y);
+
+        this.handlePlantingAndReaping();
+
+        const numDPlants = this.countPlantsOfType('plant1d') + this.countPlantsOfType('plant2d') + this.countPlantsOfType('plant3d');
+        if (numDPlants >= 5) {
+            this.displayWinMessage();
+        }
+
+        if (this.cursors.incrementTime.isDown && this.lastTimeIncrement <= 0) {
+            this.timeElapsed += 1;
+            this.updateTimeDisplay();
+            this.lastTimeIncrement = this.timeInterval;
+
+            for (const key in this.tilledSoilData) {
+                const tileData = this.tilledSoilData[key];
+                tileData.sunLevel += Math.floor(Math.random() * 10) + 1;
+                tileData.waterLevel += Math.floor(Math.random() * 2) + 1;
+
+                const [tileX, tileY] = key.split(',').map(Number);
+                this.checkPlantGrowth(tileX, tileY);
+                tileData.sunLevel = 0;
+            }
+        }
+
+        if (this.lastTimeIncrement > 0) {
+        this.lastTimeIncrement -= 100;
+        }
+
+        this.updateGameState();
     }
 
-    if (this.cursors.up.isDown) {
-        this.direction.y = -1;
-    } else if (this.cursors.down.isDown) {
-        this.direction.y = 1;
-    }
+    updateGameState() 
+    {
+        //Create AoS byte array
+        const view = new Uint8Array(this.gameStateBuffer);
+        let offset = 0;
 
-    this.direction.normalize();
-    this.player.setVelocity(this.VEL * this.direction.x, this.VEL * this.direction.y);
-
-    this.handlePlantingAndReaping();
-
-    // Check if the number of 'D' plants is at least 5
-    const numDPlants = this.countPlantsOfType('plant1d') + this.countPlantsOfType('plant2d') + this.countPlantsOfType('plant3d');
-    if (numDPlants >= 5) {
-        this.displayWinMessage();
-    }
-
-    // Increment time and other functions
-    if (this.cursors.incrementTime.isDown && this.lastTimeIncrement <= 0) {
-        this.timeElapsed += 1;
-        this.updateTimeDisplay();
-        this.lastTimeIncrement = this.timeInterval;
-
-        for (const key in this.tilledSoilData) {
-            const tileData = this.tilledSoilData[key];
-            tileData.sunLevel += Math.floor(Math.random() * 10) + 1;
-            tileData.waterLevel += Math.floor(Math.random() * 2) + 1;
-
+        const playerData =
+        {
+            playerX: this.player.x,
+            playerY: this.player.y,
+            timeElapsed: this.timeElapsed,
+        }
+    
+        //Save player data {playerX, playerY, timeElapsed}, and soil tile data {plantType, sunLevel, waterLevel} in byte array
+        view[offset++] = playerData.playerX & 0xFF;
+        view[offset++] = (playerData.playerX >> 8) & 0xFF;
+        view[offset++] = playerData.playerY & 0xFF;
+        view[offset++] = (playerData.playerY >> 8) & 0xFF;
+    
+        view[offset++] = playerData.timeElapsed & 0xFF;
+        view[offset++] = (playerData.timeElapsed >> 8) & 0xFF;
+    
+        for (const [key, tileData] of Object.entries(this.tilledSoilData)) 
+        {
             const [tileX, tileY] = key.split(',').map(Number);
-            this.checkPlantGrowth(tileX, tileY);
-            tileData.sunLevel = 0;
+
+            const plantTypeInt = tileData.plantType || 0;
+            const sunLevel = Math.min(tileData.sunLevel || 0, 255);
+            const waterLevel = Math.min(tileData.waterLevel || 0, 255); 
+    
+            view.set([tileX, tileY, plantTypeInt, sunLevel, waterLevel], offset);
+            offset += 5; 
+        }
+    
+        //Store byte array in local storage
+        localStorage.setItem('gameState', JSON.stringify(Array.from(view)));
+    }
+    
+
+    loadGameState(savedData) 
+    {
+        //Check if saved state exists
+        if (!savedData || savedData.length < 6) 
+        {
+            this.player.x = 1200;
+            this.player.y = 1600;
+            return;
+        }
+    
+        //Load player position, time elapsed, and soil tile data from local storage
+        let offset = 0;
+
+        this.player.x = savedData[offset++] | (savedData[offset++] << 8);
+        this.player.y = savedData[offset++] | (savedData[offset++] << 8);
+    
+        this.timeElapsed = savedData[offset++] | (savedData[offset++] << 8);
+        this.updateTimeDisplay();
+    
+        if (!this.plants) 
+        {
+            this.plants = [];
+        }
+    
+        while (offset < savedData.length) 
+        {
+            const tileX = savedData[offset++];
+            const tileY = savedData[offset++];
+            const plantTypeInt = savedData[offset++];
+            const sunLevel = savedData[offset++];
+            const waterLevel = savedData[offset++];
+    
+            const key = `${tileX},${tileY}`;
+
+            if (!this.tilledSoilData[key])
+            {
+                this.tilledSoilData[key] = {};
+            }
+    
+            this.tilledSoilData[key].plantType = plantTypeInt;
+            this.tilledSoilData[key].sunLevel = sunLevel;
+            this.tilledSoilData[key].waterLevel = waterLevel;
+    
+            //Add plant sprite
+            if (plantTypeInt > 0)
+            {
+                const plantType = this.intToPlantType(plantTypeInt);
+
+                const plantSprite = this.add.sprite(tileX * this.tileSize + 16, tileY * this.tileSize + 16, plantType);
+                plantSprite.setData('tileKey', key);
+                this.plants.push(plantSprite);
+            }
         }
     }
+    
+    
+    //Helper functions for plant type conversion
+    plantTypeToInt(plantType) 
+    {
+        const plantTypes = 
+        [
+            'plant1a', 'plant1b', 'plant1c', 'plant1d',
+            'plant2a', 'plant2b', 'plant2c', 'plant2d',
+            'plant3a', 'plant3b', 'plant3c', 'plant3d'
+        ];
 
-    if (this.lastTimeIncrement > 0) {
-        this.lastTimeIncrement -= 100;
+        return plantTypes.indexOf(plantType) + 1;
     }
+
+    
+    intToPlantType(plantInt) 
+    {
+        const plantTypes = 
+        [
+            'plant1a', 'plant1b', 'plant1c', 'plant1d',
+            'plant2a', 'plant2b', 'plant2c', 'plant2d',
+            'plant3a', 'plant3b', 'plant3c', 'plant3d'
+        ];
+
+        return plantTypes[plantInt - 1] || null;
     }
 
-    handlePlantingAndReaping() {
+    
+    handlePlantingAndReaping() 
+    {
+        const playerTileX = Math.floor(this.player.x / this.tileSize);
+        const playerTileY = Math.floor(this.player.y / this.tileSize);
 
-        if (!this.farmingLayer)
+        const tileKey = `${playerTileX},${playerTileY}`;
+    
+        if (!this.tilledSoilData[tileKey])
         {
             return;
         }
+    
+        //Plant if player presses R
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.plant)) 
+        {
+            const plantTypes = ['plant1a', 'plant2a', 'plant3a'];
 
-        const tileSize = this.map.tileWidth;
+            const randomPlantType = plantTypes[Math.floor(Math.random() * plantTypes.length)];
+            const plantTypeInt = this.plantTypeToInt(randomPlantType);
     
-        const playerTileX = Math.floor(this.player.x / tileSize);
-        const playerTileY = Math.floor(this.player.y / tileSize);
-
-        const farmingTile = this.farmingLayer.getTileAt(playerTileX, playerTileY);
-        const canFarm = farmingTile !== null;
-    
-        const plantTypes = ['plant1a', 'plant2a', 'plant3a'];
-    
-        if (Phaser.Input.Keyboard.JustDown(this.cursors.plant)) {
-            if (canFarm) {
-                let existingPlant = null;
-    
-                //Check if a plant already exists on this tile
-                if (this.plants) {
-                    for (let i = 0; i < this.plants.length; i++) {
-                        const plant = this.plants[i];
-    
-                        const plantTileX = Math.floor(plant.x / tileSize);
-                        const plantTileY = Math.floor(plant.y / tileSize);
-    
-                        if (plantTileX === playerTileX && plantTileY === playerTileY) {
-                            existingPlant = plant;
-                            break;
-                        }
-                    }
-                }
-    
-                //If a plant exists, destroy it and place a new one
-                if (existingPlant) 
-                {
-                    existingPlant.destroy();
-
-                    const index = this.plants.indexOf(existingPlant);
-                    if (index !== -1) 
-                    {
-                        this.plants.splice(index, 1);
-                    }
-                }
-    
-                //Place a new random plant
-                const randomPlantType = plantTypes[Math.floor(Math.random() * plantTypes.length)];
-    
-                const offsetX = 16;
-                const offsetY = 16;
-    
-                const newPlant = this.add.sprite(
-                    (playerTileX * tileSize) + offsetX,
-                    (playerTileY * tileSize) + offsetY,
-                    randomPlantType,
-                );
-    
-                newPlant.setDepth(10);
-    
-                if (!this.plants) 
-                {
-                    this.plants = [];
-                }
-    
-                this.plants.push(newPlant);
+            //Don't plant if plant already exists on tile
+            if (this.tilledSoilData[tileKey].plantType !== 0) 
+            {
+                return;
             }
+
+            this.tilledSoilData[tileKey].plantType = plantTypeInt;
+    
+            const plantSprite = this.add.sprite
+            (
+                playerTileX * this.tileSize + 16,
+                playerTileY * this.tileSize + 16,
+                randomPlantType
+            );
+    
+            if (!this.plants) 
+            {
+                this.plants = [];
+            }
+
+            plantSprite.setData('tileKey', tileKey); 
+            this.plants.push(plantSprite);
+    
         }
     
+        //Reap if player presses F
         if (Phaser.Input.Keyboard.JustDown(this.cursors.reap)) 
         {
-            if (canFarm) 
+            if (this.tilledSoilData[tileKey].plantType !== 0) 
             {
+                this.tilledSoilData[tileKey].plantType = 0;
+    
                 if (this.plants) 
                 {
                     for (let i = 0; i < this.plants.length; i++) 
                     {
-                        const plant = this.plants[i];
-                        const plantX = plant.x;
-                        const plantY = plant.y;
-    
-                        if (Math.floor(plantX / tileSize) === playerTileX && Math.floor(plantY / tileSize) === playerTileY) 
+                        const plantSprite = this.plants[i];
+
+                        if (plantSprite.getData('tileKey') === tileKey) 
                         {
-                            plant.destroy();
+                            plantSprite.destroy();
                             this.plants.splice(i, 1);
                             break;
                         }
@@ -248,26 +364,26 @@ class Play extends Phaser.Scene {
             }
         }
     }
-
+    
 
     initTilledSoilData() 
     {
-        if (this.farmingLayer)
+        this.farmingLayer.forEachTile((tile) => 
         {
-            this.farmingLayer.forEachTile((tile) => 
+            if (tile.index !== -1) 
             {
-                if (tile.index !== -1) 
-                { 
-                    this.tilledSoilData[`${tile.x},${tile.y}`] = 
-                    {
-                        sunLevel: 0,
-                        waterLevel: Math.floor(Math.random() * 2) + 1
+                const key = `${tile.x},${tile.y}`;
 
-                    };
-                }
-            });
-        }
+                this.tilledSoilData[key] = 
+                {
+                    sunLevel: 0,
+                    waterLevel: Math.floor(Math.random() * 2) + 1,
+                    plantType: 0
+                };
+            }
+        });
     }
+
 
     //Draws a grid overlay on the tilled soil spots that can have seeds planted on them
     drawGrid() 
@@ -291,26 +407,22 @@ class Play extends Phaser.Scene {
         graphics.strokePath();
     }
 
+
     getTilledSoilData(tileX, tileY) 
     {
         const key = `${tileX},${tileY}`;
         return this.tilledSoilData[key] || null;
     }
 
+
     //Helper function to get the next upgrade level of a plant
     upgradePlantLevel(plant)
     {
         const plantUpgradeMap = 
         {
-            plant1a: 'plant1b',
-            plant1b: 'plant1c',
-            plant1c: 'plant1d', 
-            plant2a: 'plant2b',
-            plant2b: 'plant2c',
-            plant2c: 'plant2d', 
-            plant3a: 'plant3b',
-            plant3b: 'plant3c',
-            plant3c: 'plant3d', 
+            plant1a: 'plant1b', plant1b: 'plant1c', plant1c: 'plant1d', 
+            plant2a: 'plant2b', plant2b: 'plant2c', plant2c: 'plant2d', 
+            plant3a: 'plant3b', plant3b: 'plant3c', plant3c: 'plant3d', 
         };
 
         const currentPlantType = plant.texture.key;
@@ -323,19 +435,20 @@ class Play extends Phaser.Scene {
         return currentPlantType;
     }
 
-    updateTimeDisplay()
+
+    updateTimeDisplay() 
     {
         const minutes = Math.floor(this.timeElapsed / 60);
         const seconds = this.timeElapsed % 60;
-
-        const timeString = `${this.padTime(minutes)}:${this.padTime(seconds)}`;
-        this.infoText.setText(`Time: ${timeString}`);
+        this.infoText.setText(`Time: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
     }
+
 
     padTime(time)
     {
         return time < 10 ? `0${time}` : time.toString();
     }
+
 
     //Checks if a plant is eligible to grow based on specific conditions
     checkPlantGrowth(tileX, tileY) 
@@ -343,32 +456,37 @@ class Play extends Phaser.Scene {
         const key = `${tileX},${tileY}`;
         const tileData = this.tilledSoilData[key];
     
-        if (!tileData) return;
+        if (!tileData || tileData.plantType === 0)
+        {
+            return;
+        }
     
         const nearbyPlants = this.getNearbyPlants(tileX, tileY, 3);
-        const waterRequirement = 5
+        const waterRequirement = 5;
         const sunRequirement = 5;
     
-        //A plant can only grow if its sun level is >= 5, water level is >= 5, and there is at least one nearby plant
         if (tileData.sunLevel >= sunRequirement && tileData.waterLevel >= waterRequirement && nearbyPlants.length >= 2) 
-        {
+        {   
             tileData.sunLevel -= sunRequirement;
             tileData.waterLevel -= waterRequirement;
     
             const plant = this.getPlantAt(tileX, tileY);
-
+    
             if (plant) 
             {
-                const newTexture = this.upgradePlantLevel(plant);
-
+                const currentPlantType = this.intToPlantType(tileData.plantType);
+                const newTexture = this.upgradePlantLevel({ texture: { key: currentPlantType } });
+    
                 if (newTexture) 
                 {
-                    plant.setTexture(newTexture);
+                    tileData.plantType = this.plantTypeToInt(newTexture); 
+                    plant.setTexture(newTexture); 
                 }
             }
         }
     }
     
+
     //Checks if there are plants located next to another plant in a given tile range
     getNearbyPlants(tileX, tileY, range) 
     {
@@ -403,6 +521,7 @@ class Play extends Phaser.Scene {
         }) || null;
     }
 
+
     //Function that counts the amount of plants of each type
     countPlantsOfType(plantType) {
         let count = 0;
@@ -416,6 +535,7 @@ class Play extends Phaser.Scene {
         return count;
     }
     
+
     //Function that displays the win condition
     displayWinMessage() {
         this.infoText.setText("Phase 1 complete: Grew 5 level 4 plants");
