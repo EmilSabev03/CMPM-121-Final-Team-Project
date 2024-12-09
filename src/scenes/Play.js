@@ -21,6 +21,8 @@ class Play extends Phaser.Scene
         this.gameStateSize = this.playerDataSize + (this.maxPlants * this.plantDataSize) + this.timeDataSize;
         this.gameStateBuffer = new ArrayBuffer(this.gameStateSize);
         this.view = new DataView(this.gameStateBuffer);
+
+        this.saveMenu = null;
     }
 
     preload() {
@@ -62,7 +64,9 @@ class Play extends Phaser.Scene
             'right': Phaser.Input.Keyboard.KeyCodes.D,
             'plant': Phaser.Input.Keyboard.KeyCodes.R,
             'reap': Phaser.Input.Keyboard.KeyCodes.F,
-            'incrementTime': Phaser.Input.Keyboard.KeyCodes.T
+            'incrementTime': Phaser.Input.Keyboard.KeyCodes.T,
+            'saveGameState': Phaser.Input.Keyboard.KeyCodes.K,
+            'displayMenu': Phaser.Input.Keyboard.KeyCodes.M,
         });
 
         //Add map to scene
@@ -112,20 +116,33 @@ class Play extends Phaser.Scene
         this.initTilledSoilData();
         this.drawGrid();
 
-        //Load the game state upon refresh 
+        //Load the default saved state 
         const savedState = localStorage.getItem('gameState');
 
-        
-        if (savedState) 
+        if (!localStorage.getItem('manualSaves'))
         {
-            const savedData = new Uint8Array(JSON.parse(savedState));
-            this.loadGameState(savedData);
+            localStorage.setItem('manualSaves', JSON.stringify([]));
         }
         
+        const savedStates = JSON.parse(localStorage.getItem('manualSaves' || '[]'));
+        
+        //If a saved state exists, use the most recent one based on the timestamp of the save
+        if (savedStates.length > 0)
+        {
+            const latestSave = savedStates.reduce((latest, current) => new Date(current.timestamp) > new Date(latest.timestamp) ? current : latest);
+            this.loadGameState(new Uint8Array(latestSave.data));
+        }
+
+        else
+        {
+            const savedState = localStorage.getItem('gameState');
+            if (savedState) { this.loadGameState(new Uint8Array(JSON.parse(savedState))); }
+        }  
     }
 
     update() 
     {
+        //Update player movement
         this.direction = new Phaser.Math.Vector2(0);
 
         if (this.cursors.left.isDown) {
@@ -142,6 +159,21 @@ class Play extends Phaser.Scene
 
         this.direction.normalize();
         this.player.setVelocity(this.VEL * this.direction.x, this.VEL * this.direction.y);
+
+
+        //If player presses K, create a new save key and update game state
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.saveGameState))
+        {
+            const saveKey = `manualSave_${new Date().getTime()}`;
+            this.updateGameState(saveKey);
+        }
+
+        //If player presses M, display the saves menu
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.displayMenu))
+        {
+            this.displaySavesMenu();
+        }
+
 
         this.handlePlantingAndReaping();
 
@@ -166,76 +198,225 @@ class Play extends Phaser.Scene
             }
         }
 
-        if (this.lastTimeIncrement > 0) {
-        this.lastTimeIncrement -= 100;
+        if (this.lastTimeIncrement > 0) 
+        {
+            this.lastTimeIncrement -= 100;
         }
-
-        this.updateGameState();
     }
 
-    updateGameState() 
+    displaySavesMenu() 
+    {
+        if (this.saveMenu) 
+        {
+            this.saveMenu.destroy();
+            this.saveMenu = null;
+            return;
+        }
+    
+        const savedStates = JSON.parse(localStorage.getItem('manualSaves') || '[]');
+    
+        const menuBackground = this.add.rectangle
+        (
+            this.cameras.main.centerX,
+            this.cameras.main.centerY,
+            500,
+            400,
+            0x000000,
+            0.8
+        ).setOrigin(0.5).setScrollFactor(0);
+    
+        const menuTitle = this.add.text
+        (
+            this.cameras.main.centerX,
+            this.cameras.main.centerY - 180,
+            'Saved Game States',
+            { fontSize: '20px', fill: '#ffffff' }
+        ).setOrigin(0.5).setScrollFactor(0);
+    
+        this.saveMenu = this.add.container(0, 0, [menuBackground, menuTitle]);
+    
+        //Clear button to delete all saves and reset the game's state
+        const clearAllButton = this.add.text
+        (
+            this.cameras.main.centerX,
+            this.cameras.main.centerY - 150,
+            'Clear All Saves',
+            { fontSize: '16px', fill: '#ff4444' }
+        ).setOrigin(0.5).setInteractive().setScrollFactor(0);
+    
+        clearAllButton.on('pointerdown', () => 
+        {
+            localStorage.setItem('manualSaves', JSON.stringify([]));
+            localStorage.removeItem('gameState'); 
+            
+            console.log('All saved states cleared. Game resetting to initial state.');
+            
+            this.timeElapsed = 0;
+            this.lastTimeIncrement = 0;
+            this.tilledSoilData = {};
+            
+            if (this.plants && this.plants.length > 0) 
+            {
+                this.plants.forEach(plant => plant.destroy()); 
+                this.plants = [];
+            }
+        
+            this.player.setPosition(1200, 1600);
+            this.initTilledSoilData(); 
+            this.updateTimeDisplay(); 
+
+            this.infoText.setStyle({
+                fontSize: '50px',
+                fill: '#ffffff'
+            });
+            
+            this.displaySavesMenu();
+        });
+            
+        this.saveMenu.add(clearAllButton);
+    
+        const closeMenuButton = this.add.text
+        (
+            this.cameras.main.centerX,
+            this.cameras.main.centerY + 160,
+            'Close',
+            { fontSize: '16px', fill: '#ff0000' }
+        ).setOrigin(0.5).setInteractive().setScrollFactor(0);
+    
+        closeMenuButton.on('pointerdown', () => 
+        {
+            this.saveMenu.destroy();
+            this.saveMenu = null;
+        });
+
+        this.saveMenu.add(closeMenuButton);
+
+        const startY = this.cameras.main.centerY - 80; 
+        const saveEntryHeight = 30;
+    
+        //Add saves and load functionality
+        savedStates.forEach((save, index) => 
+        {
+            const saveText = this.add.text
+            (
+                this.cameras.main.centerX - 200,
+                startY + index * saveEntryHeight - 30,
+                `${save.saveKey} (${new Date(save.timestamp).toLocaleString()})`,
+                { fontSize: '14px', fill: '#ffffff' }
+            ).setOrigin(0).setScrollFactor(0);
+    
+            const loadButton = this.add.text
+            (
+                this.cameras.main.centerX - 225,
+                startY + index * saveEntryHeight - 22,
+                'Load',
+                { fontSize: '14px', fill: '#00ff00' }
+            ).setOrigin(0.5).setInteractive().setScrollFactor(0);
+    
+            loadButton.on('pointerdown', () => 
+            {
+                this.loadGameState(new Uint8Array(save.data));
+                this.saveMenu.destroy();
+                this.saveMenu = null;
+            });
+    
+            this.saveMenu.add([saveText, loadButton]);
+        });
+    
+        //If no saves exist, display an empty menu
+        if (savedStates.length === 0) 
+        {
+            const noSavesText = this.add.text
+            (
+                this.cameras.main.centerX,
+                startY + 50,
+                'No saved states available.',
+                { fontSize: '14px', fill: '#ffffff' }
+            ).setOrigin(0.5).setScrollFactor(0);
+    
+            this.saveMenu.add(noSavesText);
+        }
+    }
+    
+
+    updateGameState(saveKey = 'gameState') 
     {
         //Create AoS byte array
         const view = new Uint8Array(this.gameStateBuffer);
         let offset = 0;
-
-        const playerData =
+    
+        const playerData = 
         {
             playerX: this.player.x,
             playerY: this.player.y,
             timeElapsed: this.timeElapsed,
-        }
+        };
     
-        //Save player data {playerX, playerY, timeElapsed}, and soil tile data {plantType, sunLevel, waterLevel} in byte array
+       //Save player data {playerX, playerY, timeElapsed}, and soil tile data {plantType, sunLevel, waterLevel} in byte array
         view[offset++] = playerData.playerX & 0xFF;
         view[offset++] = (playerData.playerX >> 8) & 0xFF;
         view[offset++] = playerData.playerY & 0xFF;
         view[offset++] = (playerData.playerY >> 8) & 0xFF;
-    
         view[offset++] = playerData.timeElapsed & 0xFF;
         view[offset++] = (playerData.timeElapsed >> 8) & 0xFF;
     
         for (const [key, tileData] of Object.entries(this.tilledSoilData)) 
         {
             const [tileX, tileY] = key.split(',').map(Number);
-
             const plantTypeInt = tileData.plantType || 0;
             const sunLevel = Math.min(tileData.sunLevel || 0, 255);
-            const waterLevel = Math.min(tileData.waterLevel || 0, 255); 
+            const waterLevel = Math.min(tileData.waterLevel || 0, 255);
     
             view.set([tileX, tileY, plantTypeInt, sunLevel, waterLevel], offset);
-            offset += 5; 
+            offset += 5;
         }
     
-        //Store byte array in local storage
-        localStorage.setItem('gameState', JSON.stringify(Array.from(view)));
+        //Save the game state (key, data, and timestamp) to the manual saves array
+        const savedStates = JSON.parse(localStorage.getItem('manualSaves') || '[]');
+        savedStates.push({ saveKey, data: Array.from(view), timestamp: new Date().toISOString() });
+    
+        //Save manual saves array and update default game state
+        try 
+        {
+            localStorage.setItem('manualSaves', JSON.stringify(savedStates));
+            localStorage.setItem('gameState', JSON.stringify(Array.from(view)));
+            console.log(`Game state saved under key: ${saveKey}`);
+        } 
+        
+        catch (error)
+        {
+            console.error('Failed to save game state:', error);
+        }
     }
     
-
+    
     loadGameState(savedData) 
     {
-        //Check if saved state exists
+        // Check if saved state exists
         if (!savedData || savedData.length < 6) 
         {
             this.player.x = 1200;
             this.player.y = 1600;
             return;
         }
-    
-        //Load player position, time elapsed, and soil tile data from local storage
+
+        if (this.plants && this.plants.length > 0) 
+        {
+            this.plants.forEach(plant => plant.destroy());
+            this.plants = [];
+        }
+
+        this.tilledSoilData = {};
+
+        // Load player position, time elapsed, and soil tile data from local storage
         let offset = 0;
 
         this.player.x = savedData[offset++] | (savedData[offset++] << 8);
         this.player.y = savedData[offset++] | (savedData[offset++] << 8);
-    
+
         this.timeElapsed = savedData[offset++] | (savedData[offset++] << 8);
         this.updateTimeDisplay();
-    
-        if (!this.plants) 
-        {
-            this.plants = [];
-        }
-    
+
         while (offset < savedData.length) 
         {
             const tileX = savedData[offset++];
@@ -243,29 +424,36 @@ class Play extends Phaser.Scene
             const plantTypeInt = savedData[offset++];
             const sunLevel = savedData[offset++];
             const waterLevel = savedData[offset++];
-    
+
             const key = `${tileX},${tileY}`;
 
             if (!this.tilledSoilData[key])
             {
                 this.tilledSoilData[key] = {};
             }
-    
+
             this.tilledSoilData[key].plantType = plantTypeInt;
             this.tilledSoilData[key].sunLevel = sunLevel;
             this.tilledSoilData[key].waterLevel = waterLevel;
-    
-            //Add plant sprite
+
+            // Add plant sprite
             if (plantTypeInt > 0)
             {
                 const plantType = this.intToPlantType(plantTypeInt);
 
                 const plantSprite = this.add.sprite(tileX * this.tileSize + 16, tileY * this.tileSize + 16, plantType);
                 plantSprite.setData('tileKey', key);
+
+                if (!this.plants) 
+                {
+                    this.plants = [];
+                }
+
                 this.plants.push(plantSprite);
             }
         }
     }
+
     
     
     //Helper functions for plant type conversion

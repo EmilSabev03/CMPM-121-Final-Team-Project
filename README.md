@@ -14,4 +14,6 @@ F0g -
   
 # F1:
 
-F1a - chatgpt helped with setting up the AoS byte array and with part of the updategamestate and loadgamestate functionality
+F1a - chatgpt helped with setting up the AoS byte array and part of the updategamestate and loadgamestate functionality
+F1b - chatgpt helped with creating the game state management system and setting up the menu screen function
+
