@@ -13,8 +13,22 @@ F0f - chatgpt helped with setting up the spatial rules and growth functionality
 F0g -   
   
 ## F1:
-
+  
 F1a - chatgpt helped with setting up the AoS byte array and part of the updategamestate and loadgamestate functionality  
 F1b - chatgpt helped with creating the game state management system and setting up the menu screen function  
 F1c - chatgpt helped with setting up the continue/go back auto save features  
 F1d - chatgpt helped with undo/redo stack functionality and buttons  
+  
+## F2:
+  
+F2a -  
+F2b -  
+F2c -  
+F2d -  
+  
+## F3:
+  
+F3a -  
+F3b -  
+F3c -  
+F3d -  
