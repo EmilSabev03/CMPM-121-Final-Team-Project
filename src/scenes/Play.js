@@ -138,7 +138,31 @@ class Play extends Phaser.Scene
             const savedState = localStorage.getItem('gameState');
             if (savedState) { this.loadGameState(new Uint8Array(JSON.parse(savedState))); }
         }  
+
+        //Upon refresh/reopen, the player can choose if they want to continue from the autosave or the last manual save
+        const autoSavedData = localStorage.getItem('autoSave');
+
+        if (autoSavedData)
+        {
+            const continueGame = confirm("Do you want to continue where you left off?");
+
+            if (continueGame)
+            {
+                this.loadGameState(new Uint8Array(JSON.parse(autoSavedData)));
+            }
+
+            else
+            {
+                const defaultSave = localStorage.getItem('gameState');
+
+                if (defaultSave)
+                {
+                    this.loadGameState(new Uint8Array(JSON.parse(defaultSave)));
+                }
+            }
+        }
     }
+
 
     update() 
     {
@@ -202,6 +226,8 @@ class Play extends Phaser.Scene
         {
             this.lastTimeIncrement -= 100;
         }
+
+        this.autoSaveGameState();
     }
 
     displaySavesMenu() 
@@ -337,7 +363,51 @@ class Play extends Phaser.Scene
             this.saveMenu.add(noSavesText);
         }
     }
+
+    //Function to automatically save the game's state, used in update() every frame
+    autoSaveGameState()
+    {
+        const view = new Uint8Array(this.gameStateBuffer);
+        let offset = 0;
+
+        const playerData = 
+        {
+            playerX: this.player.x,
+            playerY: this.player.y,
+            timeElapsed: this.timeElapsed,
+        };
+
+        view[offset++] = playerData.playerX & 0xFF;
+        view[offset++] = (playerData.playerX >> 8) & 0xFF;
+        view[offset++] = playerData.playerY & 0xFF;
+        view[offset++] = (playerData.playerY >> 8) & 0xFF;
+        view[offset++] = playerData.timeElapsed & 0xFF;
+        view[offset++] = (playerData.timeElapsed >> 8) & 0xFF;
+
+        for (const [key, tileData] of Object.entries(this.tilledSoilData)) 
+        {
+            const [tileX, tileY] = key.split(',').map(Number);
+            const plantTypeInt = tileData.plantType || 0;
+            const sunLevel = Math.min(tileData.sunLevel || 0, 255);
+            const waterLevel = Math.min(tileData.waterLevel || 0, 255);
     
+            view.set([tileX, tileY, plantTypeInt, sunLevel, waterLevel], offset);
+            offset += 5;
+        }
+
+        try 
+        {
+            localStorage.setItem('autoSave', JSON.stringify(Array.from(view)));
+        }
+
+        catch (error)
+        {
+            console.error('Failed to auto save game state:', error);
+        }
+
+
+    }
+
 
     updateGameState(saveKey = 'gameState') 
     {
