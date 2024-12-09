@@ -1,0 +1,23 @@
+{
+    "en": {
+        "time": "Time: {minutes}:{seconds}",
+        "winMessage": "Phase 1 complete: Grew 5 level 4 plants",
+        "mechanics": "Mechanics:\n\nR to Plant\nF to Reap\nT to Pass Time\nK to Save State\nM to open Menu"
+    },
+    "zh": {
+        "time": "时间: {minutes}:{seconds}",
+        "winMessage": "第一阶段完成: 种植了5个4级植物",
+        "mechanics": "机制:\n\nR 种植\nF 收获\nT 通过时间\nK 保存状态\nM 打开菜单"
+    },
+    "ar": {
+        "time": "الوقت: {minutes}:{seconds}",
+        "winMessage": "تم إكمال المرحلة 1: نمو 5 نباتات من المستوى 4",
+        "mechanics": "الآليات:\n\nR لزراعة\nF للحصاد\nT لتمرير الوقت\nK لحفظ الحالة\nM لفتح القائمة"
+    },
+    "es": {
+        "time": "Tiempo: {minnutes}:{seconds}",
+        "winMessage": "Fase 1 completa: 5 plantas de nivel 4 cosechadas",
+        "mechanics": "Mecánica:\n\nR para Plantar\nF para Cosechar\nT para Pasar Tiempo\nK para Guardar Estado\nM para abrir Menú"
+
+    }
+}

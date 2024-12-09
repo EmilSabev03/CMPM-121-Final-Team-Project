@@ -29,6 +29,9 @@ class Play extends Phaser.Scene
     }
 
     preload() {
+        //Load translations
+        this.load.json('translations', 'assets/translations.json');
+
         //Load tilemap, player, tileset, and plant assets
         this.load.tilemapTiledJSON('gameMap', 'assets/gamemaptest6.tmj');
 
@@ -59,6 +62,14 @@ class Play extends Phaser.Scene
     }
 
     create() {
+        // Access translations and set default language
+        this.translations = this.cache.json.get('translations');
+        this.selectedLanguage = 'es'; // Default language
+
+        // Add key bindings for language selection
+        this.createKeyBindings();
+
+
         //Movement directions and plant/reap
         this.cursors = this.input.keyboard.addKeys({
             'up': Phaser.Input.Keyboard.KeyCodes.W,
@@ -72,6 +83,7 @@ class Play extends Phaser.Scene
             'displayMenu': Phaser.Input.Keyboard.KeyCodes.M,
         });
 
+  
         //Add map to scene
         this.map = this.make.tilemap({ key: 'gameMap' });
 
@@ -117,7 +129,8 @@ class Play extends Phaser.Scene
         }).setOrigin(0.5).setScrollFactor(0);
 
         const instructionStyle = { fontSize: '16px', fill: '#ffffff', align: 'right' };
-        this.add.text(this.cameras.main.worldView.width - 20, 20, 'Mechanics:\n\nR to Plant\nF to Reap\nT to Pass Time\nK to Save State\nM to open Menu', instructionStyle).setOrigin(1, 0).setScrollFactor(0);
+        const mechanicsText = this.getText('mechanics')
+        this.add.text(this.cameras.main.worldView.width - 20, 20, mechanicsText, instructionStyle).setOrigin(1, 0).setScrollFactor(0);
 
         this.initTilledSoilData();
         this.drawGrid();
@@ -181,9 +194,9 @@ class Play extends Phaser.Scene
         //Update player movement
         this.direction = new Phaser.Math.Vector2(0);
     
-        if (this.cursors.left.isDown) {
+        if (this.cursors.left.isDown || this.cursors.left.isDown === true) {
             this.direction.x = -1;
-        } else if (this.cursors.right.isDown) {
+        } else if (this.cursors.right.isDown || this.cursors.right.isDown === true) {
             this.direction.x = 1;
         }
     
@@ -795,11 +808,12 @@ class Play extends Phaser.Scene
     }
 
 
-    updateTimeDisplay() 
-    {
-        const minutes = Math.floor(this.timeElapsed / 60);
-        const seconds = this.timeElapsed % 60;
-        this.infoText.setText(`Time: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
+    updateTimeDisplay() {
+        const minutes = Math.floor((this.timeElapsed || 0) / 60);
+        const seconds = (this.timeElapsed || 0) % 60;
+
+        const timeString = this.getText('time', { minutes, seconds });
+        this.infoText.setText(timeString);
     }
 
 
@@ -893,11 +907,48 @@ class Play extends Phaser.Scene
         }
         return count;
     }
+
+    createKeyBindings() {
+        // Map keys 1, 2, and 3 to languages
+        this.input.keyboard.on('keydown-ONE', () => this.setLanguage('en'));
+        this.input.keyboard.on('keydown-TWO', () => this.setLanguage('zh'));
+        this.input.keyboard.on('keydown-THREE', () => this.setLanguage('ar'));
+        this.input.keyboard.on('keydown-FOUR', () => this.setLanguage('es'));
+
+
+
+    }
+
+    setLanguage(languageCode) {
+        if (this.translations[languageCode]) {
+            this.selectedLanguage = languageCode;
+            // Update existing text to reflect the new language
+            this.updateDisplayedText();
+        } else {
+            console.warn(`Language ${languageCode} not supported.`);
+        }
+    }
+
+    updateDisplayedText() {
+        // Update the info text with the new language
+        this.updateTimeDisplay();
+        this.updateMechanicsMessage();
+    }
+    updateMechanicsMessage() {
+        const mechMessage = this.getText('mechanics');
+        this.mechanicsText.setText(mechMessage);
+    }
+
+    getText(key, params = {}) {
+        const text = this.translations[this.selectedLanguage][key] || key;
+        return text.replace(/{(\w+)}/g, (_, match) => params[match] || '');
+    }
     
 
     //Function that displays the win condition
     displayWinMessage() {
-        this.infoText.setText("Phase 1 complete: Grew 5 level 4 plants");
-        this.infoText.setStyle({ fontSize: '30px', fill: '#00ff00' });
+        const winMessage = this.getText('winMessage'); // Fetch the localized win message
+        this.infoText.setText(winMessage);
+        this.infoText.setStyle({ fontSize: '20px', fill: '#00ff00' });
     }
 }
