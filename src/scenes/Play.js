@@ -116,6 +116,9 @@ class Play extends Phaser.Scene
             fill: '#ffffff'
         }).setOrigin(0.5).setScrollFactor(0);
 
+        const instructionStyle = { fontSize: '16px', fill: '#ffffff', align: 'right' };
+        this.add.text(this.cameras.main.worldView.width - 20, 20, 'Mechanics:\n\nR to Plant\nF to Reap\nT to Pass Time\nK to Save State\nM to open Menu', instructionStyle).setOrigin(1, 0).setScrollFactor(0);
+
         this.initTilledSoilData();
         this.drawGrid();
 
